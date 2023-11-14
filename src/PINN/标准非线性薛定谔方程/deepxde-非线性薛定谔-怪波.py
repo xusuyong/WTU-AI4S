@@ -1,3 +1,6 @@
+"""Backend supported: tensorflow.compat.v1, tensorflow, pytorch, paddle"""
+import os
+os.environ["DDEBACKEND"] = "pytorch"
 import numpy as np
 
 import deepxde as dde
@@ -133,7 +136,7 @@ ax[0].set_ylabel("Real part")
 ax[0].imshow(
     u.T,
     interpolation="nearest",
-    cmap="viridis",
+    cmap="jet",
     extent=[t_lower, t_upper, x_lower, x_upper],
     origin="lower",
     aspect="auto",
@@ -142,7 +145,7 @@ ax[1].set_ylabel("Imaginary part")
 ax[1].imshow(
     v.T,
     interpolation="nearest",
-    cmap="viridis",
+    cmap="jet",
     extent=[t_lower, t_upper, x_lower, x_upper],
     origin="lower",
     aspect="auto",
@@ -151,7 +154,7 @@ ax[2].set_ylabel("Amplitude")
 ax[2].imshow(
     h.T,
     interpolation="nearest",
-    cmap="viridis",
+    cmap="jet",
     extent=[t_lower, t_upper, x_lower, x_upper],
     origin="lower",
     aspect="auto",
@@ -165,7 +168,7 @@ surf = ax.plot_surface(
     h,
     # rstride=1,  # 指定行的跨度
     # cstride=1,  # 指定列的跨度
-    cmap="viridis",  # 设置颜色映射（这里是绿化的意思）
+    cmap="jet",  # 设置颜色映射（这里是绿化的意思）
     linewidth=0,
     antialiased=False,
 )  # 抗锯齿
