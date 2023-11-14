@@ -1,3 +1,6 @@
+"""Backend supported: tensorflow.compat.v1, tensorflow, pytorch, paddle"""
+import os
+os.environ["DDEBACKEND"] = "pytorch"
 import numpy as np
 
 import deepxde as dde
@@ -140,7 +143,7 @@ ax[0].set_ylabel("Real part")
 ax[0].imshow(
     u.T,
     interpolation="nearest",
-    cmap="viridis",
+    cmap="jet",
     extent=[t_lower, t_upper, x_lower, x_upper],
     origin="lower",
     aspect="auto",
@@ -149,7 +152,7 @@ ax[1].set_ylabel("Imaginary part")
 ax[1].imshow(
     v.T,
     interpolation="nearest",
-    cmap="viridis",
+    cmap="jet",
     extent=[t_lower, t_upper, x_lower, x_upper],
     origin="lower",
     aspect="auto",
@@ -158,7 +161,7 @@ ax[2].set_ylabel("Amplitude")
 ax[2].imshow(
     h.T,
     interpolation="nearest",
-    cmap="viridis",
+    cmap="jet",
     extent=[t_lower, t_upper, x_lower, x_upper],
     origin="lower",
     aspect="auto",
