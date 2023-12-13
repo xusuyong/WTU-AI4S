@@ -392,9 +392,9 @@ surf = ax.plot_surface(
     X,
     T,
     pH_pred,
-    rstride=stride,  # 指定行的跨度
-    cstride=stride,  # 指定列的跨度
-    cmap="Spectral",  # 设置颜色映射
+    rstride=stride,
+    cstride=stride,
+    cmap="Spectral",
     linewidth=0,
     antialiased=False,
 )  # 抗锯齿
