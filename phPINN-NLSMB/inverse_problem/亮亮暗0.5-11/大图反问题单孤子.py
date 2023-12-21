@@ -1,5 +1,5 @@
 import numpy as np
-import scipy.io  # python读取.mat数据之scipy.io&h5py
+from scipy import io
 import matplotlib.pyplot as plt
 import matplotlib
 import re
@@ -19,7 +19,9 @@ fnamevar5 = "5噪声1秒/variables1.dat"
 fnamevar10 = "10噪声1秒/variables1.dat"
 
 
-data1 = scipy.io.loadmat("0噪声1秒/反问题亮亮暗0的噪声0.5,-1,1.mat")
+data1 = io.loadmat(
+    r"D:\xsy\PycharmProjects\WTU-AI4S\phPINN-NLSMB\forward_problem\亮MW单孤子\预测结果不要动它_文献75亮MW单孤子.mat"
+)
 true_a1 = 0.5
 true_a2 = -1
 true_o0 = 1
@@ -343,7 +345,7 @@ lines = open(fnamevar0, "r").readlines()
 Chat = np.array(
     [
         np.fromstring(
-            min(re.findall(re.escape("[") + "(.*?)" + re.escape("]"), line), key=len),
+            min(re.findall(re.escape("[") + "(.*?)" + re.escape("]"), line)),
             sep=",",
         )
         for line in lines

@@ -4,7 +4,7 @@ os.environ["DDEBACKEND"] = "tensorflow.compat.v1"  # pytorch tensorflow.compat.v
 import deepxde as dde
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.io  # python读取.mat数据之scipy.io&h5py
+from scipy import io
 import time
 
 start_time = time.time()
@@ -665,7 +665,7 @@ plt.tight_layout()  # 自动调整大小和间距，使各个子图标签不重�
 
 dde.saveplot(losshistory, train_state, issave=True, isplot=True)
 
-scipy.io.savemat(
+io.savemat(
     "预测结果_双孤子etav0.mat",
     {
         "x": x,

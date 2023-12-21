@@ -1,20 +1,20 @@
 import numpy as np
-import scipy.io  # python读取.mat数据之scipy.io&h5py
+from scipy import io
 import matplotlib.pyplot as plt
 import matplotlib
 import csv  # 导入csv模块
 
 # %%
-file0 = r"F:\QQ文件\NLS-MB项目\dde\文献75亮亮暗单孤子\训练数据\loss.dat"
-data1 = scipy.io.loadmat(r"F:\QQ文件\NLS-MB项目\dde\文献75亮亮暗单孤子\训练数据\预测结果_亮亮暗.mat")
+file0 = "loss.dat"
+data1 = io.loadmat("预测结果_亮亮暗.mat")
 tt0 = -2
 tt1 = 2
 x = data1["x"]
 t = data1["t"]
-z_lower = float(x[0])
-z_upper = float(x[-1])
-t_lower = float(t[0])
-t_upper = float(t[-1])
+z_lower = np.min(x)
+z_upper = np.max(x)
+t_lower = np.min(t)
+t_upper = np.max(t)
 nx = x.shape[0]
 nt = t.shape[0]
 X, T = np.meshgrid(x, t)
@@ -25,10 +25,10 @@ EH_pred = data1["EH_pred"]
 pH_pred = data1["pH_pred"]
 etaH_pred = data1["etaH_pred"]
 # X_u_train = data1['X_u_train']
-elapsed = data1["elapsed"]
-E_L2_relative_error = float(data1["E_L2_relative_error"])
-p_L2_relative_error = float(data1["p_L2_relative_error"])
-eta_L2_relative_error = float(data1["eta_L2_relative_error"])
+elapsed = data1["elapsed"][0][0]
+E_L2_relative_error = data1["E_L2_relative_error"][0][0]
+p_L2_relative_error = data1["p_L2_relative_error"][0][0]
+eta_L2_relative_error = data1["eta_L2_relative_error"][0][0]
 print("x", z_lower, z_upper, "  t", t_lower, t_upper)
 print("Training time: %.4fs or %.4fminutes" % (elapsed, elapsed / 60))
 print(
@@ -371,5 +371,5 @@ subfigs[2, 1].text(
 )
 
 
-plt.savefig(r"亮亮暗")
+plt.savefig("亮亮暗")
 plt.show()

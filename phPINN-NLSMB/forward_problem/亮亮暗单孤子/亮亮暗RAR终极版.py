@@ -5,7 +5,7 @@ import deepxde as dde
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
-import scipy.io  # python读取.mat数据之scipy.io&h5py
+from scipy import io
 import time
 
 start_time = time.time()
@@ -160,36 +160,36 @@ data = dde.data.TimePDE(
 )  # 在内部取10000个点，在边界取20个点，在初始取200个点,"pseudo" (pseudorandom)伪随机分布
 # 前面输出pde的loss，后面输出初始、边界的loss
 # Network architecture
-net = dde.nn.FNN([2] + [128] * 6 + [5], "tanh", "Glorot normal")
+net = dde.nn.FNN([2] + [64] * 6 + [5], "tanh", "Glorot normal")
 
 model = dde.Model(data, net)
 
 resampler = dde.callbacks.PDEPointResampler(period=5000)
-
+loss_weights = [1, 1, 1, 1, 1, 100, 100, 100, 100, 100]
 model.compile(
     "adam",
     lr=0.001,
     loss="MSE",
     decay=("inverse time", 5000, 0.6),
-    # loss_weights=[1, 1, 1, 1, 1, 100, 100, 100, 100, 100]
+    loss_weights=loss_weights,
 )
 losshistory, train_state = model.train(
-    iterations=30000, display_every=100, callbacks=[resampler]
+    iterations=2000, display_every=100, callbacks=[resampler]
 )
-
-# dde.optimizers.config.set_LBFGS_options(
-#     maxcor=50,
-#     ftol=1.0 * np.finfo(float).eps,
-#     gtol=1e-08,
-#     maxiter=50000,
-#     maxfun=50000,
-#     maxls=50,
-# )
-model.compile(
-    "L-BFGS",
-    # loss_weights=[1, 1, 1, 1, 1, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
-)
-losshistory, train_state = model.train(display_every=100, callbacks=[resampler])
+if 1:
+    dde.optimizers.config.set_LBFGS_options(
+        maxcor=50,
+        ftol=1.0 * np.finfo(float).eps,
+        gtol=1e-08,
+        maxiter=1000,
+        maxfun=None,
+        maxls=50,
+    )
+    model.compile(
+        "L-BFGS",
+        loss_weights=loss_weights,
+    )
+    losshistory, train_state = model.train(display_every=100, callbacks=[resampler])
 
 # XT = geomtime.random_points(100000)
 # err = 1
@@ -668,7 +668,7 @@ fig17.colorbar(h0, ax=[ax0, ax1, ax2], location="right")
 
 dde.saveplot(losshistory, train_state, issave=True, isplot=True)
 
-scipy.io.savemat(
+io.savemat(
     "预测结果_亮亮暗.mat",
     {
         "x": x,
