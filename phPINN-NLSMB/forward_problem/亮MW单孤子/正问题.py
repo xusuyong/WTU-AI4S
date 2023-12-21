@@ -1,11 +1,40 @@
-import numpy as np
+"""Backend supported: tensorflow.compat.v1, tensorflow, pytorch, paddle"""
+import os
 
+os.environ["DDEBACKEND"] = "tensorflow.compat.v1"
+os.makedirs("model", exist_ok=True)
 import deepxde as dde
-
-# For plotting
-import scipy.io  # python读取.mat数据之scipy.io&h5py
 import matplotlib.pyplot as plt
+import matplotlib
+import numpy as np
+from numpy import exp, cos, sin, log, tanh, cosh, real, imag, sinh, sqrt, arctan
+import scipy.io as io  # python读取.mat数据之scipy.io&h5py
+import re
+import time
 
+start_time = time.time()
+
+if dde.backend.backend_name == "paddle":
+    import paddle
+
+    sin_tesnor = paddle.sin
+    exp_tensor = paddle.exp
+    cos_tesnor = paddle.cos
+    concat = paddle.concat
+elif dde.backend.backend_name == "pytorch":
+    import torch
+
+    sin_tesnor = torch.sin
+    cos_tesnor = torch.cos
+    exp_tensor = torch.exp
+    concat = torch.cat
+else:
+    from deepxde.backend import tf
+
+    sin_tesnor = tf.sin
+    cos_tesnor = tf.cos
+    exp_tensor = tf.exp
+    concat = tf.concat
 z_lower = -2
 z_upper = 2
 t_lower = -3
@@ -82,7 +111,6 @@ def pde(x, y):  # 这里x其实是x和t，y其实是u和v
     f2_v = -2 * Eu * eta + pu_t + 2 * pv * omega
     f3 = 2 * pv * Ev + 2 * pu * Eu + eta_t
 
-    # return f1_u + f1_v + f2_u + f2_v + f3
     return [f1_u, f1_v, f2_u, f2_v, f3]
 
 
@@ -179,31 +207,31 @@ net = dde.nn.FNN([2] + [128] * 6 + [5], "tanh", "Glorot normal")
 model = dde.Model(data, net)
 
 resampler = dde.callbacks.PDEPointResampler(period=5000)
-
+loss_weights = [1, 1, 1, 1, 1, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
 model.compile(
     "adam",
     lr=0.001,
     loss="MSE",
     decay=("inverse time", 5000, 0.5),
-    # loss_weights=[1, 1, 1, 1, 1, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    loss_weights=loss_weights,
 )
 losshistory, train_state = model.train(
-    iterations=30000, display_every=100, callbacks=[resampler]
+    iterations=30, display_every=100, callbacks=[resampler]
 )
-
-# dde.optimizers.config.set_LBFGS_options(
-#     maxcor=50,
-#     ftol=1.0 * np.finfo(float).eps,
-#     gtol=1e-08,
-#     maxiter=50000,
-#     maxfun=50000,
-#     maxls=50,
-# )
-model.compile(
-    "L-BFGS",
-    # loss_weights=[1, 1, 1, 1, 1, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
-)
-losshistory, train_state = model.train(display_every=100, callbacks=[resampler])
+if 0:
+    # dde.optimizers.config.set_LBFGS_options(
+    #     maxcor=50,
+    #     ftol=1.0 * np.finfo(float).eps,
+    #     gtol=1e-08,
+    #     maxiter=50000,
+    #     maxfun=50000,
+    #     maxls=50,
+    # )
+    model.compile(
+        "L-BFGS",
+        loss_weights=loss_weights,
+    )
+    losshistory, train_state = model.train(display_every=100, callbacks=[resampler])
 
 """RAR"""
 # for i in range(10):#一下添加几个点，总共这些次
@@ -263,17 +291,17 @@ print(
 )
 
 """精确解"""
-EExact_h = griddata(X_star, Eh_true, (X, T), method="cubic")
-pExact_h = griddata(X_star, ph_true, (X, T), method="cubic")
-etaExact_h = griddata(X_star, etah_true, (X, T), method="cubic")
+EExact_h = Eh_true.reshape(nt, nx)
+pExact_h = ph_true.reshape(nt, nx)
+etaExact_h = etah_true.reshape(nt, nx)
 """预测解"""
-EH_pred = griddata(X_star, Eh_pred, (X, T), method="cubic")
-pH_pred = griddata(X_star, ph_pred, (X, T), method="cubic")
-etaH_pred = griddata(X_star, etah_pred, (X, T), method="cubic")
+EH_pred = Eh_pred.reshape(nt, nx)
+pH_pred = ph_pred.reshape(nt, nx)
+etaH_pred = etah_pred.reshape(nt, nx)
 
 # Plot predictions
 A = t_upper - t_lower
-stride = 1
+stride = 5
 elevation = 20
 azimuth = -40
 dpi = 130
@@ -582,7 +610,7 @@ plt.subplots_adjust(
 
 dde.saveplot(losshistory, train_state, issave=True, isplot=True)
 
-scipy.io.savemat(
+io.savemat(
     "预测结果不要动它_文献75亮MW单孤子.mat",
     {
         "x": x,
