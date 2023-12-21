@@ -1,7 +1,7 @@
 """Backend supported: tensorflow.compat.v1, tensorflow, pytorch, paddle"""
 import os
 
-os.environ["DDEBACKEND"] = "tensorflow.compat.v1"
+os.environ["DDEBACKEND"] = "paddle"
 os.makedirs("model", exist_ok=True)
 import deepxde as dde
 import matplotlib.pyplot as plt
@@ -9,14 +9,32 @@ import matplotlib
 import numpy as np
 from numpy import exp, cos, sin, log, tanh, cosh, real, imag, sinh, sqrt, arctan
 
-# import torch
 import re
 import time
 
 start_time = time.time()
-# from deepxde.backend import tf
 
+if dde.backend.backend_name == "paddle":
+    import paddle
 
+    sin_tesnor = paddle.sin
+    exp_tensor = paddle.exp
+    cos_tesnor = paddle.cos
+    concat = paddle.concat
+elif dde.backend.backend_name == "pytorch":
+    import torch
+
+    sin_tesnor = torch.sin
+    cos_tesnor = torch.cos
+    exp_tensor = torch.exp
+    concat = torch.cat
+else:
+    from deepxde.backend import tf
+
+    sin_tesnor = tf.sin
+    cos_tesnor = tf.cos
+    exp_tensor = tf.exp
+    concat = tf.concat
 z_lower = -0.5
 z_upper = 0.5
 t_lower = -2.5
@@ -36,59 +54,37 @@ X, T = np.meshgrid(x, t)
 X_star = np.hstack((X.flatten()[:, None], T.flatten()[:, None]))
 I = 1j
 
-alpha_1 = dde.Variable(1.0)  # dtype = float64
+alpha_1 = dde.Variable(1.0)
 alpha_2 = dde.Variable(2.0)
 omega_0 = dde.Variable(0.0)
-True_alpha_1 = 0.5  # dtype = float64
-True_alpha_2 = -1
-True_omega_0 = 0.5
-true_var_dict = {"True_alpha_1": 0.5, "True_alpha_2": -1, "True_omega_0": 0.5}
-# var_dict={"alpha_1":dde.Variable(0.0),"alpha_2":dde.Variable(0.0), "omega_0":dde.Variable(0.0)}
 
-true_var_list = [True_alpha_1, True_alpha_2, True_omega_0]
+true_var_dict = {"alpha_1": 0.5, "alpha_2": -1, "omega_0": 0.5}
 var_list = [alpha_1, alpha_2, omega_0]
 """X = x[:, 0:1]不能变成X = x[:, 0]!!!"""
 
 
 def solution(XT):
-    from numpy import exp, cos, sin, log, tanh, cosh, real, imag, sinh
-
     z = XT[:, 0:1]
     t = XT[:, 1:2]
-    EExact = np.exp(((3 * t) / 2 - (65 * z) / 8) * I) * (
-        -1
-        - 4
-        * (-162 * I * z / 17 - 1)
-        / (
-            (16384 * (-(19 * z) / 128 + (17 * t) / 64) ** 2) / 289
-            + 1
-            + (26244 * z**2) / 289
-        )
+    EExact = (
+        (-1565 * z**2 + (648 * I + 76 * t) * z - 68 * t**2 + 51)
+        * exp(-I / 8 * (-12 * t + 65 * z))
+        / (1565 * z**2 - 76 * z * t + 68 * t**2 + 17)
     )
     pExact = (
-        64
-        * I
-        / 17
-        * (
-            -(146088055 * t * z**3) / 33554432
-            - (1586899 * t**3 * z) / 8388608
-            + (12033042425 * z**4) / 268435456
-            + (1419857 * t**4) / 16777216
-            + (134257551 * t**2 * z**2) / 33554432
-            - (355843677 * z**2) / 134217728
-            + (1252815 * t**2) / 33554432
-            - (7767453 * z * t) / 33554432
-            + 1085773 / 268435456
-            - 622796445 * I * z**3 / 33554432
-            - 6765201 * I * z * t**2 / 8388608
-            + 5595907 * I * z / 33554432
-            + 83521 * I * t / 4194304
-            + 7561107 * I * z**2 * t / 8388608
+        (
+            9796900 * I * z**4
+            + (4056480 - 951520 * I * t) * z**3
+            + (-579432 * I + 874464 * I * t**2 - 196992 * t) * z**2
+            + (-36448 - 41344 * I * t**3 + 176256 * t**2 - 50592 * I * t) * z
+            + 884 * I
+            + 18496 * I * t**4
+            + 8160 * I * t**2
+            - 4352 * t
         )
-        * np.exp(((3 * t) / 2 - (65 * z) / 8) * I)
-    ) / (
-        4 * ((19 * z) / 128 - (17 * t) / 64) ** 2 + (6561 * z**2) / 1024 + 289 / 4096
-    ) ** 2
+        * exp(-I / 8 * (-12 * t + 65 * z))
+        / (1565 * z**2 - 76 * z * t + 68 * t**2 + 17) ** 2
+    )
     etaExact = (
         4624 * t**4
         - 10336 * t**3 * z
@@ -171,58 +167,43 @@ def feature_transform(XT):
     )
 
 
-# net.apply_feature_transform(feature_transform)
+net.apply_feature_transform(feature_transform)
 
 
 def output_transform(XT, y):
-    # Uu = y[:, 0]
-    # Uv = y[:, 1]
-    # Vu = y[:, 2]
-    # Vv = y[:, 3]
-    # phi0u = y[:, 4]
-    # phi0v = y[:, 5]
-    z = XT[:, 0]
-    t = XT[:, 1]
-    # sin = torch.sin
-    # tanh = torch.tanh
-    # sqrt=torch.sqrt
-    # arctan=torch.arctan
-    # exp=torch.exp
-    # log = torch.log
-    # cos = torch.cos
-    # sinh = torch.sinh
-    # cosh = torch.cosh
+    z = XT[:, 0:1]
+    t = XT[:, 1:2]
+
+    exp = exp_tensor
 
     EExact = (
-        (-1565 * t**2 + (648 * I + 76 * z) * t - 68 * z**2 + 51)
-        * exp(-I / 8 * (-12 * z + 65 * t))
-        / (1565 * t**2 - 76 * t * z + 68 * z**2 + 17)
+        (-1565 * z**2 + (648 * I + 76 * t) * z - 68 * t**2 + 51)
+        * exp(-I / 8 * (-12 * t + 65 * z))
+        / (1565 * z**2 - 76 * z * t + 68 * t**2 + 17)
     )
-
     pExact = (
         (
-            9796900 * I * t**4
-            + (4056480 - 951520 * I * z) * t**3
-            + (-579432 * I + 874464 * I * z**2 - 196992 * z) * t**2
-            + (-36448 - 41344 * I * z**3 + 176256 * z**2 - 50592 * I * z) * t
+            9796900 * I * z**4
+            + (4056480 - 951520 * I * t) * z**3
+            + (-579432 * I + 874464 * I * t**2 - 196992 * t) * z**2
+            + (-36448 - 41344 * I * t**3 + 176256 * t**2 - 50592 * I * t) * z
             + 884 * I
-            + 18496 * I * z**4
-            + 8160 * I * z**2
-            - 4352 * z
+            + 18496 * I * t**4
+            + 8160 * I * t**2
+            - 4352 * t
         )
-        * exp(-I / 8 * (-12 * z + 65 * t))
-        / (1565 * t**2 - 76 * t * z + 68 * z**2 + 17) ** 2
+        * exp(-I / 8 * (-12 * t + 65 * z))
+        / (1565 * z**2 - 76 * z * t + 68 * t**2 + 17) ** 2
     )
-
     etaExact = (
-        4624 * z**4
-        - 10336 * z**3 * t
-        + (218616 * t**2 + 6664) * z**2
-        + (-237880 * t**3 + 158440 * t) * z
-        + 2449225 * t**4
-        - 136934 * t**2
+        4624 * t**4
+        - 10336 * t**3 * z
+        + (218616 * z**2 + 6664) * t**2
+        + (-237880 * z**3 + 158440 * z) * t
+        + 2449225 * z**4
+        - 136934 * z**2
         - 799
-    ) / (1565 * t**2 - 76 * t * z + 68 * z**2 + 17) ** 2
+    ) / (1565 * z**2 - 76 * z * t + 68 * t**2 + 17) ** 2
 
     Eu_true = torch.real(EExact)
     Ev_true = torch.imag(EExact)
@@ -236,19 +217,20 @@ def output_transform(XT, y):
     # eee = (1 - torch.exp(z - z_upper)) * (1 - torch.exp(z_lower - z)) * (1 - torch.exp(t_lower - t)) * phi0u + phi0u_true
     # fff = (1 - torch.exp(z - z_upper)) * (1 - torch.exp(z_lower - z)) * (1 - torch.exp(t_lower - t)) * phi0v + phi0v_true
 
-    # return torch.stack([aaa, bbb, ccc, ddd, eee, fff], dim=1)
-    return torch.stack([Eu_true, Ev_true, pu_true, pv_true, etaExact], dim=1)
+    # return concat([aaa, bbb, ccc, ddd, eee, fff], dim=1)
+    return concat([Eu_true, Ev_true, pu_true, pv_true, etaExact], 1)
 
 
 # net.apply_output_transform(output_transform)
 
 model = dde.Model(data, net)
 
-iterations = 200
+iterations = 4000
+loss_weights = [1, 1, 1, 1, 1, 100, 100, 100, 100, 100]
 model.compile(
     "adam",
     lr=0.001,
-    # loss_weights=[1,1,1,1, 100, 100, 100, 100],
+    loss_weights=loss_weights,
     metrics=["l2 relative error"],
     decay=("inverse time", iterations // 5, 0.5),
     external_trainable_variables=var_list,
@@ -268,7 +250,7 @@ losshistory, train_state = model.train(
     callbacks=[resampler, variable],
 )
 
-if 0:
+if 1:
     dde.optimizers.config.set_LBFGS_options(
         # maxcor=50,
         # ftol=1.0 * np.finfo(float).eps,
@@ -279,7 +261,7 @@ if 0:
     )
     model.compile(
         "L-BFGS",
-        # loss_weights=[1,1,1,1, 100, 100, 100, 100],
+        loss_weights=loss_weights,
         metrics=["l2 relative error"],
         external_trainable_variables=var_list,
     )
@@ -332,41 +314,24 @@ Chat = np.array(
         for line in lines
     ]
 )
+
 l, c = Chat.shape
-fig = plt.figure("反问题系数", dpi=dpi, facecolor=None, edgecolor=None)
-for i, value in enumerate(true_var_list):
+i = 0
+plt.figure("反问题系数", dpi=dpi, facecolor=None, edgecolor=None)
+for key, value in true_var_dict.items():
     relative_error = dde.metrics._absolute_percentage_error(value, Chat[-1, i])
-    print("relative_error_{}: {}%".format(i, relative_error))
+    print("relative_error_{}: {}".format(key, relative_error))
     plt.plot(
         range(0, period * l, period),
-        np.ones(Chat[:, 0].shape) * true_var_list[i],
-        label="True {}".format(str(true_var_list[i])),
-    )
-    plt.plot(
-        range(0, period * l, period),
-        Chat[:, i],
+        np.ones(Chat[:, 0].shape) * value,
         "--",
-        label="{}".format(str(true_var_list[i])),
+        label="true $\\" + key + "$",
     )
-
-
-# plt.plot(range(0, period * l, period), Chat[:, 0], "r-")
-# plt.plot(range(0, period * l, period), Chat[:, 1], "k-")
-# plt.plot(range(0, period * l, period), Chat[:, 2], "g-")
-# plt.plot(range(0, period * l, period), np.ones(Chat[:, 0].shape) * true_var_list[0], "r--")
-# plt.plot(range(0, period * l, period), np.ones(Chat[:, 1].shape) * true_var_list[1], "k--")
-# plt.plot(range(0, period * l, period), np.ones(Chat[:, 2].shape) * true_var_list[2], "g--")
+    plt.plot(range(0, period * l, period), Chat[:, i], label="$\\" + key + "$")
+    i += 1
 plt.legend()
 plt.xlabel("iterations")
-# plt.tight_layout()
-
-# error_lambda_1 = abs((true_var_list[0]-Chat[-1,0])/true_var_list[0]) * 100
-# error_lambda_2 = abs((true_var_list[1]-Chat[-1,1])/true_var_list[1]) * 100
-# error_omega = abs((true_var_list[2]-Chat[-1,2])/true_var_list[2]) * 100
-#
-# print('Error l1: %.5f%%' % (error_lambda_1))
-# print('Error l2: %.5f%%' % (error_lambda_2))
-# print('Error o: %.5f%%' % (error_omega))
+plt.savefig("反问题系数.png")
 
 fig5 = plt.figure("3d预测演化图E", dpi=dpi)
 ax = fig5.add_subplot(projection="3d")
