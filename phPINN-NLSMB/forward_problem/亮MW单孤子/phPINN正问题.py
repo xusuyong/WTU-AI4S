@@ -2,7 +2,7 @@
 import os
 
 os.environ["DDEBACKEND"] = "pytorch"
-os.makedirs("model", exist_ok=True)
+os.makedirs("output_dir", exist_ok=True)
 import deepxde as dde
 import matplotlib.pyplot as plt
 import matplotlib
@@ -222,23 +222,7 @@ ic_pv = dde.icbc.IC(
 ic_eta = dde.icbc.IC(
     geomtime, eta_func, lambda _, on_initial: on_initial, component=4
 )  # 所有初始条件上的点都应用初始条件
-hard_constraint = True
 
-ic_bcs = (
-    []
-    if hard_constraint
-    else [bc_Eu, bc_Ev, bc_pu, bc_pv, bc_eta, ic_Eu, ic_Ev, ic_pu, ic_pv, ic_eta]
-)
-data = dde.data.TimePDE(
-    geomtime,
-    pde,
-    ic_bcs=ic_bcs,
-    num_domain=20000,
-    num_boundary=200,
-    num_initial=200,
-    train_distribution="pseudo",
-)  # 在内部取10000个点，在边界取20个点，在初始取200个点,"pseudo" (pseudorandom)伪随机分布
-# 前面输出pde的loss，后面输出初始、边界的loss
 # Network architecture
 PFNN = True
 net = (
@@ -260,9 +244,24 @@ net = (
     else dde.nn.FNN([2] + [64] * 6 + [5], "tanh", "Glorot normal")
 )
 
+hard_constraint = True
 if hard_constraint:
     net.apply_output_transform(output_transform)
-
+ic_bcs = (
+    []
+    if hard_constraint
+    else [bc_Eu, bc_Ev, bc_pu, bc_pv, bc_eta, ic_Eu, ic_Ev, ic_pu, ic_pv, ic_eta]
+)
+data = dde.data.TimePDE(
+    geomtime,
+    pde,
+    ic_bcs=ic_bcs,
+    num_domain=20000,
+    num_boundary=200,
+    num_initial=200,
+    train_distribution="pseudo",
+)  # 在内部取10000个点，在边界取20个点，在初始取200个点,"pseudo" (pseudorandom)伪随机分布
+# 前面输出pde的loss，后面输出初始、边界的loss
 model = dde.Model(data, net)
 
 resampler = dde.callbacks.PDEPointResampler(period=5000)
@@ -274,8 +273,14 @@ model.compile(
     decay=("inverse time", 5000, 0.5),
     loss_weights=loss_weights,
 )
+
+# model.restore("output_dir/-60.pt")
+
 losshistory, train_state = model.train(
-    iterations=500, display_every=100, callbacks=[resampler]
+    iterations=100,
+    display_every=100,
+    model_save_path="output_dir/",
+    callbacks=[resampler],
 )
 
 RAR = True
@@ -296,9 +301,10 @@ if RAR:
         # model.compile("adam", lr=0.0005)
 
         losshistory, train_state = model.train(
-            iterations=100,
+            iterations=50,
             display_every=100,
             disregard_previous_best=True,
+            model_save_path="output_dir/",
             callbacks=[early_stopping, resampler],
         )
 
@@ -316,7 +322,11 @@ if LBFGS:
         "L-BFGS",
         loss_weights=loss_weights,
     )
-    losshistory, train_state = model.train(display_every=100, callbacks=[resampler])
+    losshistory, train_state = model.train(
+        display_every=100, model_save_path="output_dir/", callbacks=[resampler]
+    )
+
+elapsed = time.time() - start_time
 
 """精确解"""
 Eu_true = Eu_func(X_star)[:, 0]
@@ -340,11 +350,12 @@ pv_pred = prediction[:, 3]
 ph_pred = np.sqrt(pu_pred**2 + pv_pred**2)
 etau_pred = prediction[:, 4]
 etah_pred = np.abs(etau_pred)
-print("E L2 relative error: %e" % (dde.metrics.l2_relative_error(Eh_true, Eh_pred)))
-print("p L2 relative error: %e" % (dde.metrics.l2_relative_error(ph_true, ph_pred)))
-print(
-    "eta L2 relative error: %e" % (dde.metrics.l2_relative_error(etah_true, etah_pred))
-)
+E_L2_relative_error = dde.metrics.l2_relative_error(Eh_true, Eh_pred)
+p_L2_relative_error = dde.metrics.l2_relative_error(ph_true, ph_pred)
+eta_L2_relative_error = dde.metrics.l2_relative_error(etah_true, etah_pred)
+print("E L2 relative error: %e" % E_L2_relative_error)
+print("p L2 relative error: %e" % p_L2_relative_error)
+print("eta L2 relative error: %e" % eta_L2_relative_error)
 
 """精确解"""
 EExact_h = Eh_true.reshape(nt, nx)
@@ -664,13 +675,20 @@ plt.subplots_adjust(
     left=0.15, right=1 - 0.01, bottom=0.08, top=1 - 0.08, wspace=None, hspace=0.25
 )
 
-dde.saveplot(losshistory, train_state, issave=True, isplot=True)
+dde.saveplot(
+    losshistory, train_state, issave=True, isplot=True, output_dir="output_dir/"
+)
 
 io.savemat(
-    "预测结果不要动它_文献75亮MW单孤子.mat",
+    "output_dir/文献75亮MW单孤子.mat",
     {
         "x": x,
         "t": t,
+        "elapsed": elapsed,
+        # "X_u_train": X_u_train,
+        "E_L2_relative_error": E_L2_relative_error,
+        "p_L2_relative_error": p_L2_relative_error,
+        "eta_L2_relative_error": eta_L2_relative_error,
         "EH_pred": EH_pred,
         "pH_pred": pH_pred,
         "etaH_pred": etaH_pred,

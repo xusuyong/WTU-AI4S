@@ -753,7 +753,7 @@ scipy.io.savemat(
         "nx": nx,
         "nt": nt,
         "elapsed": elapsed,
-        "X_u_train": X_u_train,
+        # "X_u_train": X_u_train,
         "E_L2_relative_error": E_L2_relative_error,
         "p_L2_relative_error": p_L2_relative_error,
         "eta_L2_relative_error": eta_L2_relative_error,
