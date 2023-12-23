@@ -1,14 +1,14 @@
 """Backend supported: tensorflow.compat.v1, tensorflow, pytorch, paddle"""
 import os
 
-os.environ["DDEBACKEND"] = "tensorflow.compat.v1"
+os.environ["DDEBACKEND"] = "pytorch"
 os.makedirs("model", exist_ok=True)
 import deepxde as dde
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
 from numpy import exp, cos, sin, log, tanh, cosh, real, imag, sinh, sqrt, arctan
-import scipy.io as io  # python读取.mat数据之scipy.io&h5py
+from scipy import io
 import re
 import time
 
@@ -20,6 +20,7 @@ if dde.backend.backend_name == "paddle":
     sin_tesnor = paddle.sin
     exp_tensor = paddle.exp
     cos_tesnor = paddle.cos
+    cosh_tensor = paddle.cosh
     concat = paddle.concat
 elif dde.backend.backend_name == "pytorch":
     import torch
@@ -27,19 +28,20 @@ elif dde.backend.backend_name == "pytorch":
     sin_tesnor = torch.sin
     cos_tesnor = torch.cos
     exp_tensor = torch.exp
+    cosh_tensor = torch.cosh
     concat = torch.cat
 else:
     from deepxde.backend import tf
 
-    sin_tesnor = tf.sin
-    cos_tesnor = tf.cos
-    exp_tensor = tf.exp
+    sin_tesnor = tf.math.sin
+    cos_tesnor = tf.math.cos
+    exp_tensor = tf.math.exp
+    cosh_tensor = tf.math.cosh
     concat = tf.concat
 z_lower = -2
 z_upper = 2
 t_lower = -3
 t_upper = 3
-"""eta振幅是W型孤子？？？   记住记录L2误差和训练时间、次数等"""
 nx = 512
 nt = 512
 # Creation of the 2D domain (for plotting and input)
@@ -49,24 +51,14 @@ X, T = np.meshgrid(x, t)
 # The whole domain flattened
 X_star = np.hstack((X.flatten()[:, None], T.flatten()[:, None]))
 
-"""用来算L2误差的坐标"""
-# nx1 = 256; nt1 = 201
-# # Creation of the 2D domain (for plotting and input)
-# x1 = np.linspace(z_lower, z_upper, nx1)
-# t1 = np.linspace(t_lower, t_upper, nt1)
-# X1, T1 = np.meshgrid(x1, t1)
-# X_star1 = np.hstack((X1.flatten()[:, None], T1.flatten()[:, None]))
 
 # Space and time domains/geometry (for the deepxde model)
 space_domain = dde.geometry.Interval(z_lower, z_upper)  # 先定义空间
 time_domain = dde.geometry.TimeDomain(t_lower, t_upper)  # 再定义时间
 geomtime = dde.geometry.GeometryXTime(space_domain, time_domain)  # 结合一下，变成时空区域
 
+
 # The "physics-informed" part of the loss
-
-"""the PDE residual"""
-
-
 def pde(x, y):  # 这里x其实是x和t，y其实是u和v
     """
     INPUTS:
@@ -115,46 +107,87 @@ def pde(x, y):  # 这里x其实是x和t，y其实是u和v
 
 
 # Boundary and Initial conditions
-# Initial conditions
-# def sech(x):
-#     """sech函数"""
-#     return 2 / (np.exp(x) + np.exp(-x))
-"""第一列是z，第二列是t"""
 
 
-# x=x[:, 0:1]
+# z=x[:, 0:1]
 # t=x[:, 1:2]
 def Eu_func(x):
-    return 2 * np.cos(2 * x[:, 1:2]) / np.cosh(2 * x[:, 1:2] + 6 * x[:, 0:1])
+    return 2 * cos(2 * x[:, 1:2]) / cosh(2 * x[:, 1:2] + 6 * x[:, 0:1])
 
 
 def Ev_func(x):
-    return -2 * np.sin(2 * x[:, 1:2]) / np.cosh(2 * x[:, 1:2] + 6 * x[:, 0:1])
+    return -2 * sin(2 * x[:, 1:2]) / cosh(2 * x[:, 1:2] + 6 * x[:, 0:1])
 
 
 def pu_func(x):
     return (
-        (np.exp(-2 * x[:, 1:2] - 6 * x[:, 0:1]) - np.exp(2 * x[:, 1:2] + 6 * x[:, 0:1]))
-        * np.cos(2 * x[:, 1:2])
-        / np.cosh(2 * x[:, 1:2] + 6 * x[:, 0:1]) ** 2
+        (exp(-2 * x[:, 1:2] - 6 * x[:, 0:1]) - exp(2 * x[:, 1:2] + 6 * x[:, 0:1]))
+        * cos(2 * x[:, 1:2])
+        / cosh(2 * x[:, 1:2] + 6 * x[:, 0:1]) ** 2
     )
 
 
 def pv_func(x):
     return (
-        -(
-            np.exp(-2 * x[:, 1:2] - 6 * x[:, 0:1])
-            - np.exp(2 * x[:, 1:2] + 6 * x[:, 0:1])
-        )
-        * np.sin(2 * x[:, 1:2])
-        / np.cosh(2 * x[:, 1:2] + 6 * x[:, 0:1]) ** 2
+        -(exp(-2 * x[:, 1:2] - 6 * x[:, 0:1]) - exp(2 * x[:, 1:2] + 6 * x[:, 0:1]))
+        * sin(2 * x[:, 1:2])
+        / cosh(2 * x[:, 1:2] + 6 * x[:, 0:1]) ** 2
     )
 
 
 def eta_func(x):
-    return (np.cosh(2 * x[:, 1:2] + 6 * x[:, 0:1]) ** 2 - 2) / np.cosh(
+    return (cosh(2 * x[:, 1:2] + 6 * x[:, 0:1]) ** 2 - 2) / cosh(
         2 * x[:, 1:2] + 6 * x[:, 0:1]
     ) ** 2
+
+
+def output_transform(XT, y):
+    Eu = y[:, 0:1]
+    Ev = y[:, 1:2]
+    pu = y[:, 2:3]
+    pv = y[:, 3:4]
+    eta = y[:, 4:5]
+    x = XT[:, 0:1]
+    t = XT[:, 1:2]
+    I = 1j
+    cos = cos_tesnor
+    sin = sin_tesnor
+    cosh = cosh_tensor
+    exp = exp_tensor
+
+    Eu_true = 2 * cos(2 * t) / cosh(2 * t + 6 * x)
+
+    Ev_true = -2 * sin(2 * t) / cosh(2 * t + 6 * x)
+
+    pu_true = (
+        (exp(-2 * t - 6 * x) - exp(2 * t + 6 * x))
+        * cos(2 * t)
+        / cosh(2 * t + 6 * x) ** 2
+    )
+    pv_true = (
+        -(exp(-2 * t - 6 * x) - exp(2 * t + 6 * x))
+        * sin(2 * t)
+        / cosh(2 * t + 6 * x) ** 2
+    )
+    eta_true = (cosh(2 * t + 6 * x) ** 2 - 2) / cosh(2 * t + 6 * x) ** 2
+
+    aaa = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (
+        1 - exp(t_lower - t)
+    ) * Eu + Eu_true
+    bbb = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (
+        1 - exp(t_lower - t)
+    ) * Ev + Ev_true
+    ccc = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (
+        1 - exp(t_lower - t)
+    ) * pu + pu_true
+    ddd = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (
+        1 - exp(t_lower - t)
+    ) * pv + pv_true
+    eee = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (
+        1 - exp(t_lower - t)
+    ) * eta + eta_true
+
+    return concat([aaa, bbb, ccc, ddd, eee], 1)
 
 
 # Boundary conditions,component的意思是神经网络的输出
@@ -189,25 +222,51 @@ ic_pv = dde.icbc.IC(
 ic_eta = dde.icbc.IC(
     geomtime, eta_func, lambda _, on_initial: on_initial, component=4
 )  # 所有初始条件上的点都应用初始条件
-"""初始条件就是t等于-5的时候"""
-# 初始条件满足init_cond_u或init_cond_v函数
+hard_constraint = True
+
+ic_bcs = (
+    []
+    if hard_constraint
+    else [bc_Eu, bc_Ev, bc_pu, bc_pv, bc_eta, ic_Eu, ic_Ev, ic_pu, ic_pv, ic_eta]
+)
 data = dde.data.TimePDE(
     geomtime,
     pde,
-    [bc_Eu, bc_Ev, bc_pu, bc_pv, bc_eta, ic_Eu, ic_Ev, ic_pu, ic_pv, ic_eta],
-    num_domain=25000,
+    ic_bcs=ic_bcs,
+    num_domain=20000,
     num_boundary=200,
-    num_initial=100,
+    num_initial=200,
     train_distribution="pseudo",
 )  # 在内部取10000个点，在边界取20个点，在初始取200个点,"pseudo" (pseudorandom)伪随机分布
 # 前面输出pde的loss，后面输出初始、边界的loss
 # Network architecture
-net = dde.nn.FNN([2] + [128] * 6 + [5], "tanh", "Glorot normal")
+PFNN = True
+net = (
+    dde.nn.PFNN(
+        [
+            2,
+            [16, 16, 16, 16, 16],
+            [16, 16, 16, 16, 16],
+            [16, 16, 16, 16, 16],
+            [16, 16, 16, 16, 16],
+            [16, 16, 16, 16, 16],
+            [16, 16, 16, 16, 16],
+            5,
+        ],
+        "tanh",
+        "Glorot normal",
+    )
+    if PFNN
+    else dde.nn.FNN([2] + [64] * 6 + [5], "tanh", "Glorot normal")
+)
+
+if hard_constraint:
+    net.apply_output_transform(output_transform)
 
 model = dde.Model(data, net)
 
 resampler = dde.callbacks.PDEPointResampler(period=5000)
-loss_weights = [1, 1, 1, 1, 1, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+loss_weights = [1, 1, 1, 1, 1] + np.full(len(ic_bcs), 100).tolist()
 model.compile(
     "adam",
     lr=0.001,
@@ -216,52 +275,49 @@ model.compile(
     loss_weights=loss_weights,
 )
 losshistory, train_state = model.train(
-    iterations=30, display_every=100, callbacks=[resampler]
+    iterations=500, display_every=100, callbacks=[resampler]
 )
-if 0:
-    # dde.optimizers.config.set_LBFGS_options(
-    #     maxcor=50,
-    #     ftol=1.0 * np.finfo(float).eps,
-    #     gtol=1e-08,
-    #     maxiter=50000,
-    #     maxfun=50000,
-    #     maxls=50,
-    # )
+
+RAR = True
+if RAR:
+    for i in range(5):  # 一下添加几个点，总共这些次
+        XTrar = geomtime.random_points(100000)
+        f = model.predict(XTrar, operator=pde)
+        err_eq = np.absolute(np.array(f))
+        err_eq = np.sum(err_eq, axis=0).flatten()
+        err = np.mean(err_eq)
+        print("Mean residual: %.3e" % (err))
+        x_ids = np.argsort(err_eq)[-100:]
+
+        # for elem in x_ids:
+        print("Adding new point:", XTrar[x_ids], "\n")
+        data.add_anchors(XTrar[x_ids])
+        early_stopping = dde.callbacks.EarlyStopping(min_delta=1e-4, patience=2000)
+        # model.compile("adam", lr=0.0005)
+
+        losshistory, train_state = model.train(
+            iterations=100,
+            display_every=100,
+            disregard_previous_best=True,
+            callbacks=[early_stopping, resampler],
+        )
+
+LBFGS = False
+if LBFGS:
+    dde.optimizers.config.set_LBFGS_options(
+        maxcor=50,
+        ftol=1.0 * np.finfo(float).eps,
+        gtol=1e-08,
+        maxiter=1000,
+        maxfun=None,
+        maxls=50,
+    )
     model.compile(
         "L-BFGS",
         loss_weights=loss_weights,
     )
     losshistory, train_state = model.train(display_every=100, callbacks=[resampler])
 
-"""RAR"""
-# for i in range(10):#一下添加几个点，总共这些次
-#     XTrar = geomtime.random_points(100000)
-#     f = model.predict(XTrar, operator=pde)#[0]
-#     err_eq = np.absolute(f)[:,-1]
-#     err = np.mean(err_eq)
-#     print("Mean residual: %.3e" % (err))
-#     # print(np.shape(err_eq), err_eq)
-#
-#     # err_eq = torch.tensor(err_eq)
-#     # x_ids = torch.topk(err_eq, 10, dim=0)[1].numpy()#返回最大的前十个
-#     x_ids = np.argsort(err_eq)[-40:]
-#     # print(x_ids)
-#
-#     for elem in x_ids:
-#         print("Adding new point:", XTrar[elem], "\n")
-#         data.add_anchors(XTrar[elem])
-#     early_stopping = dde.callbacks.EarlyStopping(min_delta=1e-4, patience=2000)
-#     # exit()
-#     model.compile("adam", lr=0.0005)
-#
-#     losshistory, train_state = model.train(
-#         iterations=2000,display_every=100,disregard_previous_best=True, callbacks=[early_stopping] )
-#
-#     model.compile("L-BFGS-B")
-#     losshistory, train_state = model.train()
-
-"""用来计算L2误差"""
-# X_star = geomtime.uniform_points(50000, boundary=True)
 """精确解"""
 Eu_true = Eu_func(X_star)[:, 0]
 Ev_true = Ev_func(X_star)[:, 0]
@@ -308,66 +364,66 @@ dpi = 130
 
 fig101 = plt.figure("E对比图", dpi=dpi)
 ax = plt.subplot(2, 1, 1)
-t = -2
+tt0 = -2
 index = round(
-    (t - t_lower) / A * (nt - 1)
+    (tt0 - t_lower) / A * (nt - 1)
 )  # index只能是0-200（总共有201行,=0时索引第1个数,=200时索引第201）
 plt.plot(x, EExact_h[index, :], "b-", linewidth=2, label="Exact")
 plt.plot(x, EH_pred[index, :], "r--", linewidth=2, label="Prediction")
 ax.set_ylabel("$|E(t,z)|$")
 ax.set_xlabel("$z$")
-plt.title("t=%s" % t)
+plt.title("t=%s" % tt0)
 plt.legend()
 ax = plt.subplot(2, 1, 2)
-t = 2
-index = round((t - t_lower) / A * (nt - 1))  # 只能是0-200（总共有201行）
+tt1 = 2
+index = round((tt1 - t_lower) / A * (nt - 1))  # 只能是0-200（总共有201行）
 plt.plot(x, EExact_h[index, :], "b-", linewidth=2, label="Exact")
 plt.plot(x, EH_pred[index, :], "r--", linewidth=2, label="Prediction")
 ax.set_ylabel("$|E(t,z)|$")
 ax.set_xlabel("$z$")
-plt.title("t=%s" % t)
+plt.title("t=%s" % tt1)
 plt.legend()
 fig101.tight_layout()
 
 fig102 = plt.figure("p对比图", dpi=dpi)
 ax = plt.subplot(2, 1, 1)
-t = -2
-index = round((t - t_lower) / A * (nt - 1))  # 只能是0-200（总共有201行）
+# tt0 = -2
+index = round((tt0 - t_lower) / A * (nt - 1))  # 只能是0-200（总共有201行）
 plt.plot(x, pExact_h[index, :], "b-", linewidth=2, label="Exact")
 plt.plot(x, pH_pred[index, :], "r--", linewidth=2, label="Prediction")
 ax.set_ylabel("$|p(t,z)|$")
 ax.set_xlabel("$z$")
-plt.title("t=%s" % t)
+plt.title("t=%s" % tt0)
 plt.legend()
 ax = plt.subplot(2, 1, 2)
-t = 2
-index = round((t - t_lower) / A * (nt - 1))  # 只能是0-200（总共有201行）
+# tt1 = 2
+index = round((tt1 - t_lower) / A * (nt - 1))  # 只能是0-200（总共有201行）
 plt.plot(x, pExact_h[index, :], "b-", linewidth=2, label="Exact")
 plt.plot(x, pH_pred[index, :], "r--", linewidth=2, label="Prediction")
 ax.set_ylabel("$|p(t,z)|$")
 ax.set_xlabel("$z$")
-plt.title("t=%s" % t)
+plt.title("t=%s" % tt1)
 plt.legend()
 fig102.tight_layout()
 
 fig103 = plt.figure("eta对比图", dpi=dpi)
 ax = plt.subplot(2, 1, 1)
-t = -2
-index = round((t - t_lower) / A * (nt - 1))  # 只能是0-200（总共有201行）
+# tt0 = -2
+index = round((tt0 - t_lower) / A * (nt - 1))  # 只能是0-200（总共有201行）
 plt.plot(x, etaExact_h[index, :], "b-", linewidth=2, label="Exact")
 plt.plot(x, etaH_pred[index, :], "r--", linewidth=2, label="Prediction")
 ax.set_ylabel("$|\eta(t,z)|$")
 ax.set_xlabel("$z$")
-plt.title("t=%s" % t)
+plt.title("t=%s" % tt0)
 plt.legend()
 ax = plt.subplot(2, 1, 2)
-t = 2
-index = round((t - t_lower) / A * (nt - 1))  # 只能是0-200（总共有201行）
+# tt1 = 2
+index = round((tt1 - t_lower) / A * (nt - 1))  # 只能是0-200（总共有201行）
 plt.plot(x, etaExact_h[index, :], "b-", linewidth=2, label="Exact")
 plt.plot(x, etaH_pred[index, :], "r--", linewidth=2, label="Prediction")
 ax.set_ylabel("$|\eta(t,z)|$")
 ax.set_xlabel("$z$")
-plt.title("t=%s" % t)
+plt.title("t=%s" % tt1)
 plt.legend()
 fig103.tight_layout()
 
