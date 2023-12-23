@@ -2,7 +2,6 @@ import numpy as np
 from scipy import io
 import matplotlib.pyplot as plt
 import matplotlib
-import csv  # 导入csv模块
 
 # %%
 file0 = "output_dir/loss.dat"
@@ -25,10 +24,10 @@ EH_pred = data1["EH_pred"]
 pH_pred = data1["pH_pred"]
 etaH_pred = data1["etaH_pred"]
 # X_u_train = data1['X_u_train']
-elapsed = data1["elapsed"][0][0]
-E_L2_relative_error = data1["E_L2_relative_error"][0][0]
-p_L2_relative_error = data1["p_L2_relative_error"][0][0]
-eta_L2_relative_error = data1["eta_L2_relative_error"][0][0]
+elapsed = data1["elapsed"][0, 0]
+E_L2_relative_error = data1["E_L2_relative_error"][0, 0]
+p_L2_relative_error = data1["p_L2_relative_error"][0, 0]
+eta_L2_relative_error = data1["eta_L2_relative_error"][0, 0]
 print("x", z_lower, z_upper, "  t", t_lower, t_upper)
 print("Training time: %.4fs or %.4fminutes" % (elapsed, elapsed / 60))
 print(
