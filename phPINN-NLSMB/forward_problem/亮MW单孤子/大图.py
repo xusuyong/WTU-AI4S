@@ -72,7 +72,7 @@ aaa = 9
 cmap0 = "jet"  # PuOr seismic pink_r jet coolwarm summer ocean
 
 # %% 新画图
-fig = plt.figure(layout="constrained", figsize=(aaa, aaa / 2.5 * 3))
+fig = plt.figure(layout="constrained", figsize=(aaa, aaa / 2.5 * 3), dpi=300)
 
 # fig.suptitle('fig')
 
@@ -342,5 +342,5 @@ subfigs[2, 1].text(
 )
 
 
-plt.savefig("亮亮暗")
+plt.savefig("亮亮暗.pdf", dpi="figure")
 plt.show()
