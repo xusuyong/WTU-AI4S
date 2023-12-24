@@ -371,7 +371,7 @@ A = t_upper - t_lower
 stride = 5
 elevation = 20
 azimuth = -40
-dpi = 130
+dpi = 140
 
 fig101 = plt.figure("E对比图", dpi=dpi)
 ax = plt.subplot(2, 1, 1)
