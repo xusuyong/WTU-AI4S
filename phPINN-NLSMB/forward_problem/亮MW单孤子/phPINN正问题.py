@@ -5,11 +5,9 @@ os.environ["DDEBACKEND"] = "pytorch"
 os.makedirs("output_dir", exist_ok=True)
 import deepxde as dde
 import matplotlib.pyplot as plt
-import matplotlib
 import numpy as np
 from numpy import exp, cos, sin, log, tanh, cosh, real, imag, sinh, sqrt, arctan
 from scipy import io
-import re
 import time
 
 start_time = time.time()
@@ -17,24 +15,24 @@ start_time = time.time()
 if dde.backend.backend_name == "paddle":
     import paddle
 
-    sin_tesnor = paddle.sin
+    sin_tensor = paddle.sin
+    cos_tensor = paddle.cos
     exp_tensor = paddle.exp
-    cos_tesnor = paddle.cos
     cosh_tensor = paddle.cosh
     concat = paddle.concat
 elif dde.backend.backend_name == "pytorch":
     import torch
 
-    sin_tesnor = torch.sin
-    cos_tesnor = torch.cos
+    sin_tensor = torch.sin
+    cos_tensor = torch.cos
     exp_tensor = torch.exp
     cosh_tensor = torch.cosh
     concat = torch.cat
 else:
     from deepxde.backend import tf
 
-    sin_tesnor = tf.math.sin
-    cos_tesnor = tf.math.cos
+    sin_tensor = tf.math.sin
+    cos_tensor = tf.math.cos
     exp_tensor = tf.math.exp
     cosh_tensor = tf.math.cosh
     concat = tf.concat
@@ -60,38 +58,19 @@ geomtime = dde.geometry.GeometryXTime(space_domain, time_domain)  # 结合一下
 
 # The "physics-informed" part of the loss
 def pde(x, y):  # 这里x其实是x和t，y其实是u和v
-    """
-    INPUTS:
-        x: x[:,0] is z-coordinate
-           x[:,1] is t-coordinate
-        y: Network output, in this case:
-            y[:,0] is u(x,t) the real part
-            y[:,1] is v(x,t) the imaginary part
-    OUTPUT:
-        The pde in standard form i.e. something that must be zero
-    """
-
     Eu = y[:, 0:1]
     Ev = y[:, 1:2]
     pu = y[:, 2:3]
     pv = y[:, 3:4]
     eta = y[:, 4:5]
 
-    # In 'jacobian', i is the output component and j is the input component
-    # Eu_t = dde.grad.jacobian(y, x, i=0, j=1)#一阶导用jacobian，二阶导用hessian
-    # Ev_t = dde.grad.jacobian(y, x, i=1, j=1)
-    pu_t = dde.grad.jacobian(y, x, i=2, j=1)  # 一阶导用jacobian，二阶导用hessian
+    pu_t = dde.grad.jacobian(y, x, i=2, j=1)
     pv_t = dde.grad.jacobian(y, x, i=3, j=1)
     eta_t = dde.grad.jacobian(y, x, i=4, j=1)
 
-    Eu_z = dde.grad.jacobian(y, x, i=0, j=0)  # 一阶导用jacobian，二阶导用hessian
+    Eu_z = dde.grad.jacobian(y, x, i=0, j=0)
     Ev_z = dde.grad.jacobian(y, x, i=1, j=0)
-    # pu_z = dde.grad.jacobian(y, x, i=2, j=0)  # 一阶导用jacobian，二阶导用hessian
-    # pv_z = dde.grad.jacobian(y, x, i=3, j=0)
-    # eta_z = dde.grad.jacobian(y, x, i=4, j=0)
 
-    # In 'hessian', i and j are both input components. (The Hessian could be in principle something like d^2y/dxdt, d^2y/d^2x etc)
-    # The output component is selected by "component"
     Eu_tt = dde.grad.hessian(y, x, component=0, i=1, j=1)
     Ev_tt = dde.grad.hessian(y, x, component=1, i=1, j=1)
 
@@ -107,38 +86,30 @@ def pde(x, y):  # 这里x其实是x和t，y其实是u和v
 
 
 # Boundary and Initial conditions
+def solution(XT):
+    x = XT[:, 0:1]
+    t = XT[:, 1:2]
 
+    Eu_true = 2 * cos(2 * t) / cosh(2 * t + 6 * x)
 
-# z=x[:, 0:1]
-# t=x[:, 1:2]
-def Eu_func(x):
-    return 2 * cos(2 * x[:, 1:2]) / cosh(2 * x[:, 1:2] + 6 * x[:, 0:1])
+    Ev_true = -2 * sin(2 * t) / cosh(2 * t + 6 * x)
 
-
-def Ev_func(x):
-    return -2 * sin(2 * x[:, 1:2]) / cosh(2 * x[:, 1:2] + 6 * x[:, 0:1])
-
-
-def pu_func(x):
-    return (
-        (exp(-2 * x[:, 1:2] - 6 * x[:, 0:1]) - exp(2 * x[:, 1:2] + 6 * x[:, 0:1]))
-        * cos(2 * x[:, 1:2])
-        / cosh(2 * x[:, 1:2] + 6 * x[:, 0:1]) ** 2
+    pu_true = (
+        (exp(-2 * t - 6 * x) - exp(2 * t + 6 * x))
+        * cos(2 * t)
+        / cosh(2 * t + 6 * x) ** 2
     )
-
-
-def pv_func(x):
-    return (
-        -(exp(-2 * x[:, 1:2] - 6 * x[:, 0:1]) - exp(2 * x[:, 1:2] + 6 * x[:, 0:1]))
-        * sin(2 * x[:, 1:2])
-        / cosh(2 * x[:, 1:2] + 6 * x[:, 0:1]) ** 2
+    pv_true = (
+        -(exp(-2 * t - 6 * x) - exp(2 * t + 6 * x))
+        * sin(2 * t)
+        / cosh(2 * t + 6 * x) ** 2
     )
+    eta_true = (cosh(2 * t + 6 * x) ** 2 - 2) / cosh(2 * t + 6 * x) ** 2
+
+    return Eu_true, Ev_true, pu_true, pv_true, eta_true
 
 
-def eta_func(x):
-    return (cosh(2 * x[:, 1:2] + 6 * x[:, 0:1]) ** 2 - 2) / cosh(
-        2 * x[:, 1:2] + 6 * x[:, 0:1]
-    ) ** 2
+Eu_true, Ev_true, pu_true, pv_true, eta_true = solution(X_star)
 
 
 def output_transform(XT, y):
@@ -150,8 +121,8 @@ def output_transform(XT, y):
     x = XT[:, 0:1]
     t = XT[:, 1:2]
     I = 1j
-    cos = cos_tesnor
-    sin = sin_tesnor
+    cos = cos_tensor
+    sin = sin_tensor
     cosh = cosh_tensor
     exp = exp_tensor
 
@@ -190,39 +161,27 @@ def output_transform(XT, y):
     return concat([aaa, bbb, ccc, ddd, eee], 1)
 
 
-# Boundary conditions,component的意思是神经网络的输出
-bc_Eu = dde.icbc.DirichletBC(
-    geomtime, Eu_func, lambda _, on_boundary: on_boundary, component=0
-)
-bc_Ev = dde.icbc.DirichletBC(
-    geomtime, Ev_func, lambda _, on_boundary: on_boundary, component=1
-)
-bc_pu = dde.icbc.DirichletBC(
-    geomtime, pu_func, lambda _, on_boundary: on_boundary, component=2
-)
-bc_pv = dde.icbc.DirichletBC(
-    geomtime, pv_func, lambda _, on_boundary: on_boundary, component=3
-)
-bc_eta = dde.icbc.DirichletBC(
-    geomtime, eta_func, lambda _, on_boundary: on_boundary, component=4
-)
+"""forward"""
+ic = X_star[:, 1] == t_lower
+idx_ic = np.random.choice(np.where(ic)[0], 200, replace=False)
+lb = X_star[:, 0] == z_lower
+idx_lb = np.random.choice(np.where(lb)[0], 200, replace=False)
+ub = X_star[:, 0] == z_upper
+idx_ub = np.random.choice(np.where(ub)[0], 200, replace=False)
+icbc_idx = np.hstack((idx_lb, idx_ic, idx_ub))
+X_u_train = X_star[icbc_idx]
 
-ic_Eu = dde.icbc.IC(
-    geomtime, Eu_func, lambda _, on_initial: on_initial, component=0
-)  # 所有初始条件上的点都应用初始条件
-ic_Ev = dde.icbc.IC(
-    geomtime, Ev_func, lambda _, on_initial: on_initial, component=1
-)  # 所有初始条件上的点都应用初始条件
-ic_pu = dde.icbc.IC(
-    geomtime, pu_func, lambda _, on_initial: on_initial, component=2
-)  # 所有初始条件上的点都应用初始条件
-ic_pv = dde.icbc.IC(
-    geomtime, pv_func, lambda _, on_initial: on_initial, component=3
-)  # 所有初始条件上的点都应用初始条件
-ic_eta = dde.icbc.IC(
-    geomtime, eta_func, lambda _, on_initial: on_initial, component=4
-)  # 所有初始条件上的点都应用初始条件
+"""inverse"""
+# idx = np.random.choice(X_star.shape[0], 10000, replace=False)
+# X_u_train = X_star[idx, :]  # (2000,2)
 
+Eu_train, Ev_train, pu_train, pv_train, eta_train = solution(X_u_train)
+
+observe_y = dde.icbc.PointSetBC(X_u_train, Eu_train, component=0)
+observe_y1 = dde.icbc.PointSetBC(X_u_train, Ev_train, component=1)
+observe_y2 = dde.icbc.PointSetBC(X_u_train, pu_train, component=2)
+observe_y3 = dde.icbc.PointSetBC(X_u_train, pv_train, component=3)
+observe_y4 = dde.icbc.PointSetBC(X_u_train, eta_train, component=4)
 # Network architecture
 PFNN = True
 net = (
@@ -250,31 +209,31 @@ if hard_constraint:
 ic_bcs = (
     []
     if hard_constraint
-    else [bc_Eu, bc_Ev, bc_pu, bc_pv, bc_eta, ic_Eu, ic_Ev, ic_pu, ic_pv, ic_eta]
+    else [observe_y, observe_y1, observe_y2, observe_y3, observe_y4]
 )
 data = dde.data.TimePDE(
     geomtime,
     pde,
     ic_bcs=ic_bcs,
     num_domain=20000,
-    num_boundary=200,
-    num_initial=200,
-    train_distribution="pseudo",
-)  # 在内部取10000个点，在边界取20个点，在初始取200个点,"pseudo" (pseudorandom)伪随机分布
-# 前面输出pde的loss，后面输出初始、边界的loss
+    solution=lambda XT: np.hstack((solution(XT))),
+)
+
 model = dde.Model(data, net)
 
 resampler = dde.callbacks.PDEPointResampler(period=5000)
 loss_weights = [1, 1, 1, 1, 1] + np.full(len(ic_bcs), 100).tolist()
+iterations = 3
 model.compile(
     "adam",
     lr=0.001,
     loss="MSE",
-    decay=("inverse time", 5000, 0.5),
+    metrics=["l2 relative error"],
+    decay=("inverse time", iterations // 3, 0.5),
     loss_weights=loss_weights,
 )
 
-# model.restore("output_dir/-60.pt")
+# model.restore("output_dir/-350.pt")
 
 losshistory, train_state = model.train(
     iterations=100,
@@ -298,7 +257,7 @@ if RAR:
         print("Adding new point:", XTrar[x_ids], "\n")
         data.add_anchors(XTrar[x_ids])
         early_stopping = dde.callbacks.EarlyStopping(min_delta=1e-4, patience=2000)
-        # model.compile("adam", lr=0.0005)
+        # model.compile("adam", lr=0.0001)
 
         losshistory, train_state = model.train(
             iterations=50,
@@ -308,18 +267,19 @@ if RAR:
             callbacks=[early_stopping, resampler],
         )
 
-LBFGS = False
+LBFGS = True
 if LBFGS:
     dde.optimizers.config.set_LBFGS_options(
         maxcor=50,
         ftol=1.0 * np.finfo(float).eps,
         gtol=1e-08,
-        maxiter=1000,
+        maxiter=100,
         maxfun=None,
         maxls=50,
     )
     model.compile(
         "L-BFGS",
+        metrics=["l2 relative error"],
         loss_weights=loss_weights,
     )
     losshistory, train_state = model.train(
@@ -328,20 +288,13 @@ if LBFGS:
 
 elapsed = time.time() - start_time
 
-"""精确解"""
-Eu_true = Eu_func(X_star)[:, 0]
-Ev_true = Ev_func(X_star)[:, 0]
-Eh_true = np.sqrt(Eu_true**2 + Ev_true**2)
-pu_true = pu_func(X_star)[:, 0]
-pv_true = pv_func(X_star)[:, 0]
-ph_true = np.sqrt(pu_true**2 + pv_true**2)
-etau_true = eta_func(X_star)[:, 0]
-etah_true = np.abs(etau_true)
+# 精确解
+Eh_true = np.sqrt(Eu_true**2 + Ev_true**2).flatten()
+ph_true = np.sqrt(pu_true**2 + pv_true**2).flatten()
+etah_true = np.abs(eta_true).flatten()
 # Make prediction
-"""预测解"""
-prediction = model.predict(
-    X_star, operator=None
-)  # 如果 `operator` 为 `None`，则返回网络输出，否则返回 `operator` 的输出
+# 预测解
+prediction = model.predict(X_star)
 Eu_pred = prediction[:, 0]
 Ev_pred = prediction[:, 1]
 Eh_pred = np.sqrt(Eu_pred**2 + Ev_pred**2)
@@ -371,14 +324,12 @@ A = t_upper - t_lower
 stride = 5
 elevation = 20
 azimuth = -40
-dpi = 130
+dpi = 300
 
 fig101 = plt.figure("E对比图", dpi=dpi)
 ax = plt.subplot(2, 1, 1)
 tt0 = -2
-index = round(
-    (tt0 - t_lower) / A * (nt - 1)
-)  # index只能是0-200（总共有201行,=0时索引第1个数,=200时索引第201）
+index = round((tt0 - t_lower) / A * (nt - 1))
 plt.plot(x, EExact_h[index, :], "b-", linewidth=2, label="Exact")
 plt.plot(x, EH_pred[index, :], "r--", linewidth=2, label="Prediction")
 ax.set_ylabel("$|E(t,z)|$")
@@ -387,7 +338,7 @@ plt.title("t=%s" % tt0)
 plt.legend()
 ax = plt.subplot(2, 1, 2)
 tt1 = 2
-index = round((tt1 - t_lower) / A * (nt - 1))  # 只能是0-200（总共有201行）
+index = round((tt1 - t_lower) / A * (nt - 1))
 plt.plot(x, EExact_h[index, :], "b-", linewidth=2, label="Exact")
 plt.plot(x, EH_pred[index, :], "r--", linewidth=2, label="Prediction")
 ax.set_ylabel("$|E(t,z)|$")
@@ -399,7 +350,7 @@ fig101.tight_layout()
 fig102 = plt.figure("p对比图", dpi=dpi)
 ax = plt.subplot(2, 1, 1)
 # tt0 = -2
-index = round((tt0 - t_lower) / A * (nt - 1))  # 只能是0-200（总共有201行）
+index = round((tt0 - t_lower) / A * (nt - 1))
 plt.plot(x, pExact_h[index, :], "b-", linewidth=2, label="Exact")
 plt.plot(x, pH_pred[index, :], "r--", linewidth=2, label="Prediction")
 ax.set_ylabel("$|p(t,z)|$")
@@ -408,7 +359,7 @@ plt.title("t=%s" % tt0)
 plt.legend()
 ax = plt.subplot(2, 1, 2)
 # tt1 = 2
-index = round((tt1 - t_lower) / A * (nt - 1))  # 只能是0-200（总共有201行）
+index = round((tt1 - t_lower) / A * (nt - 1))
 plt.plot(x, pExact_h[index, :], "b-", linewidth=2, label="Exact")
 plt.plot(x, pH_pred[index, :], "r--", linewidth=2, label="Prediction")
 ax.set_ylabel("$|p(t,z)|$")
@@ -420,7 +371,7 @@ fig102.tight_layout()
 fig103 = plt.figure("eta对比图", dpi=dpi)
 ax = plt.subplot(2, 1, 1)
 # tt0 = -2
-index = round((tt0 - t_lower) / A * (nt - 1))  # 只能是0-200（总共有201行）
+index = round((tt0 - t_lower) / A * (nt - 1))
 plt.plot(x, etaExact_h[index, :], "b-", linewidth=2, label="Exact")
 plt.plot(x, etaH_pred[index, :], "r--", linewidth=2, label="Prediction")
 ax.set_ylabel("$|\eta(t,z)|$")
@@ -429,7 +380,7 @@ plt.title("t=%s" % tt0)
 plt.legend()
 ax = plt.subplot(2, 1, 2)
 # tt1 = 2
-index = round((tt1 - t_lower) / A * (nt - 1))  # 只能是0-200（总共有201行）
+index = round((tt1 - t_lower) / A * (nt - 1))
 plt.plot(x, etaExact_h[index, :], "b-", linewidth=2, label="Exact")
 plt.plot(x, etaH_pred[index, :], "r--", linewidth=2, label="Prediction")
 ax.set_ylabel("$|\eta(t,z)|$")
@@ -685,7 +636,7 @@ io.savemat(
         "x": x,
         "t": t,
         "elapsed": elapsed,
-        # "X_u_train": X_u_train,
+        "X_u_train": X_u_train,
         "E_L2_relative_error": E_L2_relative_error,
         "p_L2_relative_error": p_L2_relative_error,
         "eta_L2_relative_error": eta_L2_relative_error,
