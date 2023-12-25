@@ -1,21 +1,18 @@
 """Backend supported: tensorflow.compat.v1, tensorflow, pytorch, paddle"""
 import os
-import time
-
-time_string = time.strftime("%Y年%m月%d日%H时%M分%S秒", time.localtime())
-
-folder_name = f"output_{time_string}"
 
 os.environ["DDEBACKEND"] = "pytorch"
-os.makedirs(folder_name, exist_ok=True)
+import time
 import deepxde as dde
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy import exp, cos, sin, log, tanh, cosh, real, imag, sinh, sqrt, arctan
 from scipy import io
 
+time_string = time.strftime("%Y年%m月%d日%H时%M分%S秒", time.localtime())
+folder_name = f"output_{time_string}"
+os.makedirs(folder_name, exist_ok=True)
 start_time = time.time()
-
 if dde.backend.backend_name == "paddle":
     import paddle
 
