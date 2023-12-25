@@ -4,8 +4,9 @@ import matplotlib.pyplot as plt
 import matplotlib
 
 # %%
-file0 = "output_dir/loss.dat"
-data1 = io.loadmat("output_dir/文献75亮MW单孤子.mat")
+folder_name = "output_2023年12月25日14时26分16秒"
+file0 = f"{folder_name}/loss.dat"
+data1 = io.loadmat(f"{folder_name}/预测结果_亮MW单孤子.mat")
 tt0 = -2
 tt1 = 2
 x = data1["x"].flatten()
@@ -342,5 +343,5 @@ subfigs[2, 1].text(
 )
 
 
-plt.savefig("output_dir/亮MW.pdf", dpi="figure")
+plt.savefig(f"{folder_name}/亮MW.pdf", dpi="figure")
 plt.show()
