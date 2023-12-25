@@ -242,7 +242,7 @@ model.compile(
 losshistory, train_state = model.train(
     iterations=iterations,
     display_every=100,
-    model_save_path=folder_name + "/",
+    model_save_path=f"{folder_name}/",
     callbacks=[resampler],
 )
 
@@ -265,7 +265,7 @@ if RAR:
             iterations=50,
             display_every=100,
             disregard_previous_best=True,
-            model_save_path=folder_name + "/",
+            model_save_path=f"{folder_name}/",
             callbacks=[early_stopping, resampler],
         )
 
@@ -285,7 +285,7 @@ if LBFGS:
         loss_weights=loss_weights,
     )
     losshistory, train_state = model.train(
-        display_every=100, model_save_path=folder_name + "/", callbacks=[resampler]
+        display_every=100, model_save_path=f"{folder_name}/", callbacks=[resampler]
     )
 
 elapsed = time.time() - start_time
@@ -349,7 +349,7 @@ def plot_compare(H_exact, H_pred, tt0, tt1, name):
     plt.title("t=%s" % tt1)
     plt.legend()
     fig101.tight_layout()
-    plt.savefig(folder_name + f"/对比图{name}.pdf", dpi="figure")
+    plt.savefig(f"{folder_name}/对比图{name}.pdf", dpi="figure")
 
 
 plot_compare(EExact_h, EH_pred, -2, 2, "E")
@@ -376,7 +376,7 @@ def plot3d(X, Y, Z, name, cmap):
     ax.set_zlabel("$|E(t,z)|$")
     # fig5.colorbar(surf, shrink=0.5, aspect=5)
     ax.view_init(elevation, azimuth)
-    plt.savefig(folder_name + f"/3维图{name}.pdf", dpi="figure")
+    plt.savefig(f"{folder_name}/3维图{name}.pdf", dpi="figure")
 
 
 plot3d(X, T, EH_pred, "EH_pred", cmap="Spectral")
@@ -427,7 +427,7 @@ def plot2d(E, p, eta, name, cmap):
     plt.subplots_adjust(
         left=0.15, right=1 - 0.01, bottom=0.08, top=1 - 0.08, wspace=None, hspace=0.25
     )
-    plt.savefig(folder_name + f"/投影图{name}.pdf", dpi="figure")
+    plt.savefig(f"{folder_name}/投影图{name}.pdf", dpi="figure")
 
 
 plot2d(EH_pred, pH_pred, etaH_pred, "Prediction", cmap="viridis")
@@ -441,7 +441,7 @@ plot2d(
 )
 
 io.savemat(
-    folder_name + f"/预测结果_{os.path.basename(os.getcwd())}.mat",
+    f"{folder_name}/预测结果_{os.path.basename(os.getcwd())}.mat",
     {
         "x": x,
         "t": t,
