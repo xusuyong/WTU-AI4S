@@ -1,100 +1,56 @@
+"""Backend supported: tensorflow.compat.v1, tensorflow, pytorch, paddle"""
 import os
-
-os.environ["DDEBACKEND"] = "tensorflow.compat.v1"
-import deepxde as dde
-import matplotlib.pyplot as plt
-import matplotlib
-import numpy as np
-from scipy import io
 import time
 
-start_time = time.time()
+time_string = time.strftime("%Y年%m月%d日%H时%M分%S秒", time.localtime())
 
+folder_name = f"output_{time_string}"
+
+os.environ["DDEBACKEND"] = "pytorch"
+os.makedirs(folder_name, exist_ok=True)
+import deepxde as dde
+import matplotlib.pyplot as plt
+import numpy as np
+from numpy import exp, cos, sin, log, tanh, cosh, real, imag, sinh, sqrt, arctan
+from scipy import io
+
+start_time = time.time()
 # dde.config.set_default_float("float64")
-stride = 5
-elevation = 20
-azimuth = -40
-dpi = 130
+if dde.backend.backend_name == "paddle":
+    import paddle
+
+    sin_tesnor = paddle.sin
+    exp_tensor = paddle.exp
+    cos_tesnor = paddle.cos
+    cosh_tensor = paddle.cosh
+    concat = paddle.concat
+elif dde.backend.backend_name == "pytorch":
+    import torch
+
+    sin_tesnor = torch.sin
+    cos_tesnor = torch.cos
+    exp_tensor = torch.exp
+    cosh_tensor = torch.cosh
+    concat = torch.cat
+else:
+    from deepxde.backend import tf
+
+    sin_tesnor = tf.math.sin
+    cos_tesnor = tf.math.cos
+    exp_tensor = tf.math.exp
+    cosh_tensor = tf.math.cosh
+    concat = tf.concat
 
 z_lower = -2
 z_upper = 2
 t_lower = -3
 t_upper = 3
-
-# dde.config.set_default_float("float64")
 nx = 512
 nt = 512
 # Creation of the 2D domain (for plotting and input)
 x = np.linspace(z_lower, z_upper, nx)[:, None]
 t = np.linspace(t_lower, t_upper, nt)[:, None]
 X, T = np.meshgrid(x, t)
-I = 1j
-EExact = 2 * np.exp(-2 * I / 5 * (5 * T - 2 * X)) / np.cosh(2 * T + (22 * X) / 5)
-pExact = (
-    -I
-    / 5
-    * np.exp(-2 * I / 5 * (5 * T - 2 * X))
-    * (
-        (-2 + I) * np.exp(-2 * T - (22 * X) / 5)
-        - (2 + I) * np.exp(2 * T + (22 * X) / 5)
-    )
-    / np.cosh(2 * T + (22 * X) / 5) ** 2
-)
-etaExact = (5 * np.cosh(2 * T + (22 * X) / 5) ** 2 - 2) / (
-    5 * np.cosh(2 * T + (22 * X) / 5) ** 2
-)
-EExact_u = np.real(EExact)  # (201,256)
-EExact_v = np.imag(EExact)
-pExact_u = np.real(pExact)
-pExact_v = np.imag(pExact)
-etaExact_u = np.real(etaExact)  # (201,256)
-# z_lower = np.min(x)
-# z_upper = np.max(x)
-# t_lower = np.min(t)
-# t_upper = np.max(t)
-# nx = x.shape[0]; nt = t.shape[0]
-"""matlab要从底部看，初始（第一行）"""
-idx_x = np.random.choice(nx, 50, replace=False)  # 输出数组x的行数输出为(0——256-1)，False无放回抽样
-x0 = x[idx_x, :]  # 取对应列的数据,(100,1)
-# 精确解，第idx_x行，第一列的数据
-# Eu0 = EExact_u[idx_x, 0:1]  # 因为t=t0，所以去取第一列
-# print(np.shape(Eu0))
-Eu0 = EExact_u[0:1, idx_x]  # (1,100)     写成[0, idx_x]会变成(100,)
-Ev0 = EExact_v[0:1, idx_x]  # 之所以要写成0:1是因为要确保它是个矩阵
-pu0 = pExact_u[0:1, idx_x]
-pv0 = pExact_v[0:1, idx_x]
-etau0 = etaExact_u[0:1, idx_x]
-
-"""边界"""
-idx_t = np.random.choice(nt, 50, replace=False)  # 从t中随机抽样50个数据
-tb = t[idx_t, :]  # （50，1）
-"""lower boundry是第1列（最左边一列），upper boundry是第256列（最右边一列）"""
-Eu_lb = EExact_u[idx_t, 0:1]  # (100,1)     写成[idx_t, 0]会变成(100,)
-Ev_lb = EExact_v[idx_t, 0:1]
-pu_lb = pExact_u[idx_t, 0:1]
-pv_lb = pExact_v[idx_t, 0:1]
-etau_lb = etaExact_u[idx_t, 0:1]
-
-Eu_ub = EExact_u[idx_t, nx - 1 : nx]
-Ev_ub = EExact_v[idx_t, nx - 1 : nx]
-pu_ub = pExact_u[idx_t, nx - 1 : nx]
-pv_ub = pExact_v[idx_t, nx - 1 : nx]
-etau_ub = etaExact_u[idx_t, nx - 1 : nx]
-
-X0 = np.concatenate((x0, 0 * x0 + t_lower), axis=1)  # (x0, 0)，axis=0竖直拼接，1水平拼接，（50，2）
-X_lb = np.concatenate((0 * tb + z_lower, tb), 1)  # (lb[0], tb)
-X_ub = np.concatenate((0 * tb + z_upper, tb), 1)  # (ub[0], tb)
-X_u_train = np.vstack([X_lb, X0, X_ub])  # (300,2)
-
-Eu_icbc = np.vstack([Eu_lb, Eu0.T, Eu_ub])  # (300,1)
-Ev_icbc = np.vstack([Ev_lb, Ev0.T, Ev_ub])
-pu_icbc = np.vstack([pu_lb, pu0.T, pu_ub])
-pv_icbc = np.vstack([pv_lb, pv0.T, pv_ub])
-etau_icbc = np.vstack([etau_lb, etau0.T, etau_ub])
-# etav_icbc = np.vstack([etav_lb, etav0.T, etav_ub])
-# print(X_u_train,'\n', etau_icbc)
-# exit()
-
 # The whole domain flattened
 X_star = np.hstack((X.flatten()[:, None], T.flatten()[:, None]))
 
@@ -104,6 +60,7 @@ time_domain = dde.geometry.TimeDomain(t_lower, t_upper)  # 再定义时间
 geomtime = dde.geometry.GeometryXTime(space_domain, time_domain)  # 结合一下，变成时空区域
 
 
+# The "physics-informed" part of the loss
 def pde(x, y):  # 这里x其实是x和t，y其实是u和v
     """
     INPUTS:
@@ -144,98 +101,221 @@ def pde(x, y):  # 这里x其实是x和t，y其实是u和v
     return [f1_u, f1_v, f2_u, f2_v, f3]
 
 
-observe_y = dde.icbc.PointSetBC(X_u_train, Eu_icbc, component=0)
-observe_y1 = dde.icbc.PointSetBC(X_u_train, Ev_icbc, component=1)
-observe_y2 = dde.icbc.PointSetBC(X_u_train, pu_icbc, component=2)
-observe_y3 = dde.icbc.PointSetBC(X_u_train, pv_icbc, component=3)
-observe_y4 = dde.icbc.PointSetBC(X_u_train, etau_icbc, component=4)
-"""初始条件就是t等于-5的时候"""
-# 初始条件满足init_cond_u或init_cond_v函数
+I = 1j
+
+EExact = 2 * exp(-2 * I / 5 * (5 * T - 2 * X)) / cosh(2 * T + (22 * X) / 5)
+pExact = (
+    -I
+    / 5
+    * exp(-2 * I / 5 * (5 * T - 2 * X))
+    * ((-2 + I) * exp(-2 * T - (22 * X) / 5) - (2 + I) * exp(2 * T + (22 * X) / 5))
+    / cosh(2 * T + (22 * X) / 5) ** 2
+)
+etaExact = (5 * cosh(2 * T + (22 * X) / 5) ** 2 - 2) / (
+    5 * cosh(2 * T + (22 * X) / 5) ** 2
+)
+EExact_u = np.real(EExact)  # (201,256)
+EExact_v = np.imag(EExact)
+pExact_u = np.real(pExact)
+pExact_v = np.imag(pExact)
+etaExact_u = np.real(etaExact)
+
+
+def solution(XT):
+    x = XT[:, 0:1]
+    t = XT[:, 1:2]
+
+    Eu_true = 2 * cos(2 * t) / cosh(2 * t + 6 * x)
+
+    Ev_true = -2 * sin(2 * t) / cosh(2 * t + 6 * x)
+
+    pu_true = (
+        (exp(-2 * t - 6 * x) - exp(2 * t + 6 * x))
+        * cos(2 * t)
+        / cosh(2 * t + 6 * x) ** 2
+    )
+    pv_true = (
+        -(exp(-2 * t - 6 * x) - exp(2 * t + 6 * x))
+        * sin(2 * t)
+        / cosh(2 * t + 6 * x) ** 2
+    )
+    eta_true = (cosh(2 * t + 6 * x) ** 2 - 2) / cosh(2 * t + 6 * x) ** 2
+
+    return Eu_true, Ev_true, pu_true, pv_true, eta_true
+
+
+def output_transform(XT, y):
+    Eu = y[:, 0:1]
+    Ev = y[:, 1:2]
+    pu = y[:, 2:3]
+    pv = y[:, 3:4]
+    eta = y[:, 4:5]
+    X = XT[:, 0:1]
+    T = XT[:, 1:2]
+    I = 1j
+    cos = cos_tesnor
+    sin = sin_tesnor
+    cosh = cosh_tensor
+    exp = exp_tensor
+    EExact = 2 * exp(-2 * I / 5 * (5 * T - 2 * X)) / cosh(2 * T + (22 * X) / 5)
+    pExact = (
+        -I
+        / 5
+        * exp(-2 * I / 5 * (5 * T - 2 * X))
+        * ((-2 + I) * exp(-2 * T - (22 * X) / 5) - (2 + I) * exp(2 * T + (22 * X) / 5))
+        / cosh(2 * T + (22 * X) / 5) ** 2
+    )
+    etaExact = (5 * cosh(2 * T + (22 * X) / 5) ** 2 - 2) / (
+        5 * cosh(2 * T + (22 * X) / 5) ** 2
+    )
+    EExact_u = real(EExact)  # (201,256)
+    EExact_v = imag(EExact)
+    pExact_u = real(pExact)
+    pExact_v = imag(pExact)
+    etaExact_u = real(etaExact)
+
+    aaa = (1 - exp(X - z_upper)) * (1 - exp(z_lower - X)) * (
+        1 - exp(t_lower - T)
+    ) * Eu + EExact_u
+    bbb = (1 - exp(X - z_upper)) * (1 - exp(z_lower - X)) * (
+        1 - exp(t_lower - T)
+    ) * Ev + EExact_v
+    ccc = (1 - exp(X - z_upper)) * (1 - exp(z_lower - X)) * (
+        1 - exp(t_lower - T)
+    ) * pu + pExact_u
+    ddd = (1 - exp(X - z_upper)) * (1 - exp(z_lower - X)) * (
+        1 - exp(t_lower - T)
+    ) * pv + pExact_v
+    eee = (1 - exp(X - z_upper)) * (1 - exp(z_lower - X)) * (
+        1 - exp(t_lower - T)
+    ) * eta + etaExact_u
+
+    return concat([aaa, bbb, ccc, ddd, eee], 1)
+
+
+"""forward"""
+ic = X_star[:, 1] == t_lower
+idx_ic = np.random.choice(np.where(ic)[0], 200, replace=False)
+lb = X_star[:, 0] == z_lower
+idx_lb = np.random.choice(np.where(lb)[0], 200, replace=False)
+ub = X_star[:, 0] == z_upper
+idx_ub = np.random.choice(np.where(ub)[0], 200, replace=False)
+icbc_idx = np.hstack((idx_lb, idx_ic, idx_ub))
+X_u_train = X_star[icbc_idx]
+
+"""inverse"""
+# idx = np.random.choice(X_star.shape[0], 10000, replace=False)
+# X_u_train = X_star[idx, :]  # (2000,2)
+
+Eu_train, Ev_train, pu_train, pv_train, eta_train = solution(X_u_train)
+
+observe_y = dde.icbc.PointSetBC(X_u_train, Eu_train, component=0)
+observe_y1 = dde.icbc.PointSetBC(X_u_train, Ev_train, component=1)
+observe_y2 = dde.icbc.PointSetBC(X_u_train, pu_train, component=2)
+observe_y3 = dde.icbc.PointSetBC(X_u_train, pv_train, component=3)
+observe_y4 = dde.icbc.PointSetBC(X_u_train, eta_train, component=4)
+
+# Network architecture
+PFNN = True
+net = (
+    dde.nn.PFNN(
+        [
+            2,
+            [16, 16, 16, 16, 16],
+            [16, 16, 16, 16, 16],
+            [16, 16, 16, 16, 16],
+            [16, 16, 16, 16, 16],
+            [16, 16, 16, 16, 16],
+            [16, 16, 16, 16, 16],
+            5,
+        ],
+        "tanh",
+        "Glorot normal",
+    )
+    if PFNN
+    else dde.nn.FNN([2] + [64] * 6 + [5], "tanh", "Glorot normal")
+)
+
+hard_constraint = True
+if hard_constraint:
+    net.apply_output_transform(output_transform)
+ic_bcs = (
+    []
+    if hard_constraint
+    else [observe_y, observe_y1, observe_y2, observe_y3, observe_y4]
+)
+
 data = dde.data.TimePDE(
     geomtime,
     pde,
-    [observe_y, observe_y1, observe_y2, observe_y3, observe_y4],
+    ic_bcs,
     num_domain=20000,
-    train_distribution="pseudo",
-)  # 在内部取10000个点，在边界取20个点，在初始取200个点,"pseudo" (pseudorandom)伪随机分布
-# 前面输出pde的loss，后面输出初始、边界的loss
-# Network architecture
-net = dde.nn.FNN([2] + [64] * 6 + [5], "tanh", "Glorot normal")
+    solution=lambda XT: np.hstack((solution(XT))),
+)
 
 model = dde.Model(data, net)
 
 resampler = dde.callbacks.PDEPointResampler(period=5000)
-loss_weights = [1, 1, 1, 1, 1, 100, 100, 100, 100, 100]
+loss_weights = [1, 1, 1, 1, 1] + np.full(len(ic_bcs), 100).tolist()
+iterations = 3
 model.compile(
     "adam",
     lr=0.001,
     loss="MSE",
-    decay=("inverse time", 5000, 0.6),
+    metrics=["l2 relative error"],
+    decay=("inverse time", iterations // 3, 0.5),
     loss_weights=loss_weights,
 )
 losshistory, train_state = model.train(
-    iterations=2000, display_every=100, callbacks=[resampler]
+    iterations=iterations,
+    display_every=100,
+    model_save_path=folder_name + "/",
+    callbacks=[resampler],
 )
-if 1:
+
+RAR = True
+if RAR:
+    for i in range(5):  # 一下添加几个点，总共这些次
+        XTrar = geomtime.random_points(100000)
+        f = model.predict(XTrar, operator=pde)
+        err_eq = np.absolute(np.array(f))
+        err_eq = np.sum(err_eq, axis=0).flatten()
+        err = np.mean(err_eq)
+        print("Mean residual: %.3e" % (err))
+        x_ids = np.argsort(err_eq)[-100:]
+        print("Adding new point:", XTrar[x_ids], "\n")
+        data.add_anchors(XTrar[x_ids])
+        early_stopping = dde.callbacks.EarlyStopping(min_delta=1e-4, patience=2000)
+        # model.compile("adam", lr=0.0001)
+
+        losshistory, train_state = model.train(
+            iterations=50,
+            display_every=100,
+            disregard_previous_best=True,
+            model_save_path=folder_name + "/",
+            callbacks=[early_stopping, resampler],
+        )
+
+LBFGS = True
+if LBFGS:
     dde.optimizers.config.set_LBFGS_options(
         maxcor=50,
         ftol=1.0 * np.finfo(float).eps,
         gtol=1e-08,
-        maxiter=1000,
+        maxiter=100,
         maxfun=None,
         maxls=50,
     )
     model.compile(
         "L-BFGS",
+        metrics=["l2 relative error"],
         loss_weights=loss_weights,
     )
-    losshistory, train_state = model.train(display_every=100, callbacks=[resampler])
+    losshistory, train_state = model.train(
+        display_every=100, model_save_path=folder_name + "/", callbacks=[resampler]
+    )
 
-# XT = geomtime.random_points(100000)
-# err = 1
-# while err > 0.005:
-#     f = model.predict(XT, operator=pde)
-#     err_eq = np.absolute(f)
-#     err = np.mean(err_eq)
-#     print("Mean residual: %.3e" % (err))
-#
-#     x_id = np.argmax(err_eq)
-#     print("Adding new point:", XT[x_id], "\n")
-#     data.add_anchors(XT[x_id])
-#     early_stopping = dde.callbacks.EarlyStopping(min_delta=1e-4, patience=2000)
-#     model.compile("adam", lr=1e-3)
-#     model.train(epochs=10000, disregard_previous_best=True, callbacks=[early_stopping])
-#     model.compile("L-BFGS")
-#     losshistory, train_state = model.train()
-
-
-"""RAR"""
-# for i in range(10):#一下添加几个点，总共这些次
-#     XT = geomtime.random_points(100000)
-#     f = model.predict(XT, operator=pde)#[0]
-#     err_eq = np.absolute(f)[:,-1]
-#     err = np.mean(err_eq)
-#     print("Mean residual: %.3e" % (err))
-#     # print(np.shape(err_eq), err_eq)
-#
-#     # err_eq = torch.tensor(err_eq)
-#     # x_ids = torch.topk(err_eq, 10, dim=0)[1].numpy()#返回最大的前十个
-#     x_ids = np.argsort(err_eq)[-40:]
-#     # print(x_ids)
-#
-#     for elem in x_ids:
-#         print("Adding new point:", XT[elem], "\n")
-#         data.add_anchors(XT[elem])
-#     early_stopping = dde.callbacks.EarlyStopping(min_delta=1e-4, patience=2000)
-#     # exit()
-#     model.compile("adam", lr=0.0007)
-#
-#     losshistory, train_state = model.train(
-#         iterations=10000, disregard_previous_best=True, callbacks=[early_stopping]
-#     )
-#
-#     model.compile("L-BFGS-B")
-#     losshistory, train_state = model.train()
+elapsed = time.time() - start_time
 
 """精确解"""
 EExact_h = np.abs(EExact)  # （201，256）
@@ -263,413 +343,138 @@ eta_L2_relative_error = dde.metrics.l2_relative_error(etah_true, etah_pred)
 print("E L2 relative error: %e" % E_L2_relative_error)
 print("p L2 relative error: %e" % p_L2_relative_error)
 print("eta L2 relative error: %e" % eta_L2_relative_error)
-elapsed = time.time() - start_time
-"""预测解"""
+
+EExact_h = Eh_true.reshape(nt, nx)
+pExact_h = ph_true.reshape(nt, nx)
+etaExact_h = etah_true.reshape(nt, nx)
 EH_pred = Eh_pred.reshape(nt, nx)
 pH_pred = ph_pred.reshape(nt, nx)
 etaH_pred = etah_pred.reshape(nt, nx)
 
+# Plot predictions
 A = t_upper - t_lower
+stride = 5
+elevation = 20
+azimuth = -40
+dpi = 300
 
-fig101 = plt.figure("E对比图", dpi=dpi)
-ax = plt.subplot(2, 1, 1)
-tt0 = -2
-index = round(
-    (tt0 - t_lower) / A * (nt - 1)
-)  # index只能是0-200（总共有201行,=0时索引第1个数,=200时索引第201）
-plt.plot(x, EExact_h[index, :], "b-", linewidth=2, label="Exact")
-plt.plot(x, EH_pred[index, :], "r--", linewidth=2, label="Prediction")
-ax.set_ylabel("$|E(t,z)|$")
-ax.set_xlabel("$z$")
-plt.title("t=%s" % tt0)
-plt.legend()
-ax = plt.subplot(2, 1, 2)
-tt1 = 2
-index = round((tt1 - t_lower) / A * (nt - 1))  # 只能是0-200（总共有201行）
-plt.plot(x, EExact_h[index, :], "b-", linewidth=2, label="Exact")
-plt.plot(x, EH_pred[index, :], "r--", linewidth=2, label="Prediction")
-ax.set_ylabel("$|E(t,z)|$")
-ax.set_xlabel("$z$")
-plt.title("t=%s" % tt1)
-plt.legend()
-fig101.tight_layout()
-
-fig102 = plt.figure("p对比图", dpi=dpi)
-ax = plt.subplot(2, 1, 1)
-# tt0 = -5
-index = round((tt0 - t_lower) / A * (nt - 1))  # 只能是0-200（总共有201行）
-plt.plot(x, pExact_h[index, :], "b-", linewidth=2, label="Exact")
-plt.plot(x, pH_pred[index, :], "r--", linewidth=2, label="Prediction")
-ax.set_ylabel("$|p(t,z)|$")
-ax.set_xlabel("$z$")
-plt.title("t=%s" % tt0)
-plt.legend()
-ax = plt.subplot(2, 1, 2)
-# tt1 = 5
-index = round((tt1 - t_lower) / A * (nt - 1))  # 只能是0-200（总共有201行）
-plt.plot(x, pExact_h[index, :], "b-", linewidth=2, label="Exact")
-plt.plot(x, pH_pred[index, :], "r--", linewidth=2, label="Prediction")
-ax.set_ylabel("$|p(t,z)|$")
-ax.set_xlabel("$z$")
-plt.title("t=%s" % tt1)
-plt.legend()
-fig102.tight_layout()
-
-fig103 = plt.figure("eta对比图", dpi=dpi)
-ax = plt.subplot(2, 1, 1)
-# tt0 = -5
-index = round((tt0 - t_lower) / A * (nt - 1))  # 只能是0-200（总共有201行）
-plt.plot(x, etaExact_h[index, :], "b-", linewidth=2, label="Exact")
-plt.plot(x, etaH_pred[index, :], "r--", linewidth=2, label="Prediction")
-ax.set_ylabel("$|\eta(t,z)|$")
-ax.set_xlabel("$z$")
-plt.title("t=%s" % tt0)
-plt.legend()
-ax = plt.subplot(2, 1, 2)
-# tt1 = 5
-index = round((tt1 - t_lower) / A * (nt - 1))  # 只能是0-200（总共有201行）
-plt.plot(x, etaExact_h[index, :], "b-", linewidth=2, label="Exact")
-plt.plot(x, etaH_pred[index, :], "r--", linewidth=2, label="Prediction")
-ax.set_ylabel("$|\eta(t,z)|$")
-ax.set_xlabel("$z$")
-plt.title("t=%s" % tt1)
-plt.legend()
-fig103.tight_layout()
+dde.saveplot(losshistory, train_state, issave=True, isplot=True, output_dir=folder_name)
 
 
-fig5 = plt.figure("3d预测演化图E", dpi=dpi)
-ax = fig5.add_subplot(projection="3d")
-surf = ax.plot_surface(
-    X,
-    T,
-    EH_pred,
-    rstride=stride,  # 指定行的跨度
-    cstride=stride,  # 指定列的跨度
-    cmap="Spectral",  # 设置颜色映射 还可以设置成YlGnBu_r和viridis
-    linewidth=0,
-    antialiased=False,
-)  # 抗锯齿
-# ax.grid(False)#关闭背景的网格线
-ax.set(xlabel="$z$", ylabel="$t$", zlabel="$|E(t,z)|$")
-# fig5.colorbar(surf, shrink=0.5, aspect=5)
-ax.view_init(elevation, azimuth)
-plt.tight_layout()  # 自动调整大小和间距，使各个子图标签不重叠
+def plot_compare(H_exact, H_pred, tt0, tt1, name):
+    fig101 = plt.figure(dpi=dpi)
+    ax = plt.subplot(2, 1, 1)
+
+    index = round((tt0 - t_lower) / A * (nt - 1))
+    plt.plot(x, H_exact[index, :], "b-", linewidth=2, label="Exact")
+    plt.plot(x, H_pred[index, :], "r--", linewidth=2, label="Prediction")
+    ax.set_ylabel(f"$|{name}(t,z)|$")
+    ax.set_xlabel("$z$")
+    plt.title("t=%s" % tt0)
+    plt.legend()
+    ax = plt.subplot(2, 1, 2)
+
+    index = round((tt1 - t_lower) / A * (nt - 1))
+    plt.plot(x, H_exact[index, :], "b-", linewidth=2, label="Exact")
+    plt.plot(x, H_pred[index, :], "r--", linewidth=2, label="Prediction")
+    ax.set_ylabel(f"$|{name}(t,z)|$")
+    ax.set_xlabel("$z$")
+    plt.title("t=%s" % tt1)
+    plt.legend()
+    fig101.tight_layout()
+    plt.savefig(folder_name + f"/对比图{name}.pdf", dpi="figure")
 
 
-fig6 = plt.figure("3d预测演化图p", dpi=dpi)
-ax = fig6.add_subplot(projection="3d")
-surf = ax.plot_surface(
-    X,
-    T,
-    pH_pred,
-    rstride=stride,  # 指定行的跨度
-    cstride=stride,  # 指定列的跨度
-    cmap="Spectral",  # 设置颜色映射
-    linewidth=0,
-    antialiased=False,
-)  # 抗锯齿
-# ax.grid(False)#关闭背景的网格线
-ax.set(xlabel="$z$", ylabel="$t$", zlabel="$|p(t,z)|$")
-# fig6.colorbar(surf, shrink=0.5, aspect=5)
-ax.view_init(elevation, azimuth)
-plt.tight_layout()  # 自动调整大小和间距，使各个子图标签不重叠
+plot_compare(EExact_h, EH_pred, -2, 2, "E")
+plot_compare(pExact_h, pH_pred, -2, 2, "p")
+plot_compare(etaExact_h, etaH_pred, -2, 2, "eta")
 
 
-fig7 = plt.figure("3d预测演化图eta", dpi=dpi)
-ax = fig7.add_subplot(projection="3d")
-surf = ax.plot_surface(
-    X,
-    T,
-    etaH_pred,
-    rstride=stride,  # 指定行的跨度
-    cstride=stride,  # 指定列的跨度
-    cmap="Spectral",  # 设置颜色映射
-    linewidth=0,
-    antialiased=False,
-)  # 抗锯齿
-# ax.grid(False)#关闭背景的网格线
-ax.set(xlabel="$z$", ylabel="$t$", zlabel="$|\eta(t,z)|$")
-# fig7.colorbar(surf, shrink=0.5, aspect=5)
-ax.view_init(elevation, azimuth)
-plt.tight_layout()  # 自动调整大小和间距，使各个子图标签不重叠
+def plot3d(X, Y, Z, name, cmap):
+    fig5 = plt.figure(dpi=dpi, facecolor=None, edgecolor=None, layout="tight")
+    ax = fig5.add_subplot(projection="3d")
+    surf = ax.plot_surface(
+        X,
+        Y,
+        Z,
+        rstride=stride,  # 指定行的跨度
+        cstride=stride,  # 指定列的跨度
+        cmap=cmap,  # 设置颜色映射 还可以设置成YlGnBu_r和viridis
+        linewidth=0,
+        antialiased=False,
+    )
+    # ax.grid(False)#关闭背景的网格线
+    ax.set_xlabel("$z$")
+    ax.set_ylabel("$t$")
+    ax.set_zlabel("$|E(t,z)|$")
+    # fig5.colorbar(surf, shrink=0.5, aspect=5)
+    ax.view_init(elevation, azimuth)
+    plt.savefig(folder_name + f"/3维图{name}.pdf", dpi="figure")
 
-# fig8 = plt.figure("3d真解E", dpi=dpi, facecolor=None, edgecolor=None)
-# ax = fig8.add_subplot(projection='3d')
-# surf=ax.plot_surface(X, T, EExact_h,
-#                        rstride=stride,  # 指定行的跨度
-#                        cstride=stride,  # 指定列的跨度
-#                        cmap='coolwarm',  # 设置颜色映射 还可以设置成YlGnBu_r和viridis
-#                        linewidth=0,
-#                        antialiased=False)  # 抗锯齿
-# # ax.grid(False)#关闭背景的网格线
-# ax.set(xlabel='$z$', ylabel='$t$', zlabel='$|E(t,z)|$')
-# # fig8.colorbar(surf, shrink=0.5, aspect=5)
-# ax.view_init(elevation, azimuth)
-# plt.tight_layout()#自动调整大小和间距，使各个子图标签不重叠
-#
-# fig9 = plt.figure("3d真解p", dpi=dpi, facecolor=None, edgecolor=None)
-# ax = fig9.add_subplot(projection='3d')
-# surf=ax.plot_surface(X, T, pExact_h,
-#                        rstride=stride,  # 指定行的跨度
-#                        cstride=stride,  # 指定列的跨度
-#                        cmap='coolwarm',  # 设置颜色映射
-#                        linewidth=0,
-#                        antialiased=False)  # 抗锯齿
-# # ax.grid(False)#关闭背景的网格线
-# ax.set(xlabel='$z$', ylabel='$t$', zlabel='$|p(t,z)|$')
-# # fig9.colorbar(surf, shrink=0.5, aspect=5)
-# ax.view_init(elevation, azimuth)
-# plt.tight_layout()#自动调整大小和间距，使各个子图标签不重叠
-#
-#
-# fig10 = plt.figure("3d真解eta", dpi=dpi, facecolor=None, edgecolor=None)
-# ax = fig10.add_subplot(projection='3d')
-# surf=ax.plot_surface(X, T, etaExact_h,
-#                        rstride=stride,  # 指定行的跨度
-#                        cstride=stride,  # 指定列的跨度
-#                        cmap='coolwarm',  # 设置颜色映射
-#                        linewidth=0,
-#                        antialiased=False)  # 抗锯齿
-# # ax.grid(False)#关闭背景的网格线
-# ax.set(xlabel='$z$', ylabel='$t$', zlabel='$|\eta(t,z)|$')
-# # fig10.colorbar(surf, shrink=0.5, aspect=5)
-# ax.view_init(elevation, azimuth)
-# plt.tight_layout()#自动调整大小和间距，使各个子图标签不重叠
 
-# dde薛定谔里的图
-fig15 = plt.figure("平面预测演化图", dpi=dpi, constrained_layout=True)
-norm0 = matplotlib.colors.Normalize(
-    vmin=np.min([EExact_h, pExact_h, etaExact_h, EH_pred, pH_pred, etaH_pred]),
-    vmax=np.max([EExact_h, pExact_h, etaExact_h, EH_pred, pH_pred, etaH_pred]),
+plot3d(X, T, EH_pred, "EH_pred", cmap="Spectral")
+plot3d(X, T, pH_pred, "pH_pred", cmap="Spectral")
+plot3d(X, T, etaH_pred, "etaH_pred", cmap="Spectral")
+plot3d(X, T, EExact_h, "EExact_h", cmap="coolwarm")
+plot3d(X, T, pExact_h, "pExact_h", cmap="coolwarm")
+plot3d(X, T, etaExact_h, "etaExact_h", cmap="coolwarm")
+
+
+def plot2d(E, p, eta, name, cmap):
+    fig15 = plt.figure(dpi=dpi)
+    # plt.title(f"{name}")
+    ax0 = plt.subplot(3, 1, 1)
+    ax0.set_title(f"{name}")
+    ax0.set_ylabel("$E$")
+    h = ax0.imshow(
+        E.T,
+        interpolation="nearest",
+        cmap=cmap,
+        extent=[t_lower, t_upper, z_lower, z_upper],
+        origin="lower",
+        aspect="auto",
+    )
+    fig15.colorbar(h, ax=ax0)
+    ax1 = plt.subplot(3, 1, 2)
+    ax1.set_ylabel("$p$")
+    h = ax1.imshow(
+        p.T,
+        interpolation="nearest",
+        cmap=cmap,
+        extent=[t_lower, t_upper, z_lower, z_upper],
+        origin="lower",
+        aspect="auto",
+    )
+    fig15.colorbar(h, ax=ax1)
+    ax2 = plt.subplot(3, 1, 3)
+    ax2.set_ylabel("$\eta$")
+    h = ax2.imshow(
+        eta.T,
+        interpolation="nearest",
+        cmap=cmap,
+        extent=[t_lower, t_upper, z_lower, z_upper],
+        origin="lower",
+        aspect="auto",
+    )
+    fig15.colorbar(h, ax=ax2)
+    plt.subplots_adjust(
+        left=0.15, right=1 - 0.01, bottom=0.08, top=1 - 0.08, wspace=None, hspace=0.25
+    )
+    plt.savefig(folder_name + f"/投影图{name}.pdf", dpi="figure")
+
+
+plot2d(EH_pred, pH_pred, etaH_pred, "Prediction", cmap="viridis")
+plot2d(EExact_h, pExact_h, etaExact_h, "Exact", cmap="viridis")
+plot2d(
+    np.abs(EH_pred - EExact_h),
+    np.abs(pH_pred - pExact_h),
+    np.abs(etaH_pred - etaExact_h),
+    "Absolute error",
+    cmap="viridis",
 )
-plt.suptitle("Prediction Dynamics")
-ax0 = plt.subplot(3, 1, 1)
-ax0.set_ylabel("$|E(t,z)|$")
-h0 = ax0.imshow(
-    EH_pred.T,
-    interpolation="nearest",
-    cmap="jet",
-    extent=[t_lower, t_upper, z_lower, z_upper],
-    norm=norm0,
-    origin="lower",
-    aspect="auto",
-)
-# plt.colorbar(h, ax=ax0)
-ax1 = plt.subplot(3, 1, 2)
-ax1.set_ylabel("$|p(t,z)|$")
-h1 = ax1.imshow(
-    pH_pred.T,
-    interpolation="nearest",
-    cmap="jet",
-    extent=[t_lower, t_upper, z_lower, z_upper],
-    norm=norm0,
-    origin="lower",
-    aspect="auto",
-)
-# plt.colorbar(h, ax=ax1)
-ax2 = plt.subplot(3, 1, 3)
-ax2.set_ylabel("$|\eta(t,z)|$")
-h2 = ax2.imshow(
-    etaH_pred.T,
-    interpolation="nearest",
-    cmap="jet",
-    extent=[t_lower, t_upper, z_lower, z_upper],
-    norm=norm0,
-    origin="lower",
-    aspect="auto",
-)
-# plt.colorbar(h, ax=ax2)
-fig15.colorbar(h0, ax=[ax0, ax1, ax2], location="right")
-ax0.plot(
-    X_u_train[:, 1],
-    X_u_train[:, 0],
-    "kx",
-    label="Data (%d points)" % (X_u_train.shape[0]),
-    markersize=4,
-    clip_on=False,
-)
-line = np.linspace(z_lower, z_upper, 2)[:, None]
-ax0.plot(tt0 * np.ones((2, 1)), line, "k--", linewidth=1)
-ax0.plot(tt1 * np.ones((2, 1)), line, "k--", linewidth=1)
-ax1.plot(
-    X_u_train[:, 1],
-    X_u_train[:, 0],
-    "kx",
-    label="Data (%d points)" % (X_u_train.shape[0]),
-    markersize=4,
-    clip_on=False,
-)
-ax1.plot(tt0 * np.ones((2, 1)), line, "k--", linewidth=1)
-ax1.plot(tt1 * np.ones((2, 1)), line, "k--", linewidth=1)
-ax2.plot(
-    X_u_train[:, 1],
-    X_u_train[:, 0],
-    "kx",
-    label="Data (%d points)" % (X_u_train.shape[0]),
-    markersize=4,
-    clip_on=False,
-)
-ax2.plot(tt0 * np.ones((2, 1)), line, "k--", linewidth=1)
-ax2.plot(tt1 * np.ones((2, 1)), line, "k--", linewidth=1)
-ax2.legend(
-    loc="center",
-    bbox_to_anchor=(0.6, -0.4),
-    borderaxespad=0.0,
-    fontsize=10,
-    frameon=False,
-)  # bbox_to_anchor的坐标决定loc那个点的位置
-# plt.subplots_adjust(left=0.15, right=1-0.01,bottom=0.08, top=1-0.08,wspace=None, hspace=0.25)
-# plt.tight_layout()#自动调整大小和间距，使各个子图标签不重叠
-
-
-fig16 = plt.figure("平面实际演化图", dpi=dpi, constrained_layout=True)
-# norm0 = matplotlib.colors.Normalize(vmin=np.min([EExact_h,pExact_h,etaExact_h,EH_pred,pH_pred,etaH_pred]),vmax=np.max([EExact_h,pExact_h,etaExact_h,EH_pred,pH_pred,etaH_pred]))
-plt.suptitle("Exact Dynamics")
-ax0 = plt.subplot(3, 1, 1)
-ax0.set_ylabel("$|E(t,z)|$")
-h0 = ax0.imshow(
-    EExact_h.T,
-    interpolation="nearest",
-    cmap="jet",
-    extent=[t_lower, t_upper, z_lower, z_upper],
-    norm=norm0,
-    origin="lower",
-    aspect="auto",
-)
-# plt.colorbar(h, ax=ax0)
-
-ax1 = plt.subplot(3, 1, 2)
-ax1.set_ylabel("$|p(t,z)|$")
-h1 = ax1.imshow(
-    pExact_h.T,
-    interpolation="nearest",
-    cmap="jet",
-    extent=[t_lower, t_upper, z_lower, z_upper],
-    norm=norm0,
-    origin="lower",
-    aspect="auto",
-)
-# plt.colorbar(h, ax=ax1)
-
-ax2 = plt.subplot(3, 1, 3)
-ax2.set_ylabel("$|\eta(t,z)|$")
-h2 = ax2.imshow(
-    etaExact_h.T,
-    interpolation="nearest",
-    cmap="jet",
-    extent=[t_lower, t_upper, z_lower, z_upper],
-    norm=norm0,
-    origin="lower",
-    aspect="auto",
-)
-# plt.colorbar(h, ax=ax2)
-fig16.colorbar(h0, ax=[ax0, ax1, ax2], location="right")
-ax0.plot(
-    X_u_train[:, 1],
-    X_u_train[:, 0],
-    "kx",
-    label="Data (%d points)" % (X_u_train.shape[0]),
-    markersize=4,
-    clip_on=False,
-)
-line = np.linspace(z_lower, z_upper, 2)[:, None]
-ax0.plot(tt0 * np.ones((2, 1)), line, "k--", linewidth=1)
-ax0.plot(tt1 * np.ones((2, 1)), line, "k--", linewidth=1)
-ax1.plot(
-    X_u_train[:, 1],
-    X_u_train[:, 0],
-    "kx",
-    label="Data (%d points)" % (X_u_train.shape[0]),
-    markersize=4,
-    clip_on=False,
-)
-ax1.plot(tt0 * np.ones((2, 1)), line, "k--", linewidth=1)
-ax1.plot(tt1 * np.ones((2, 1)), line, "k--", linewidth=1)
-ax2.plot(
-    X_u_train[:, 1],
-    X_u_train[:, 0],
-    "kx",
-    label="Data (%d points)" % (X_u_train.shape[0]),
-    markersize=4,
-    clip_on=False,
-)
-ax2.plot(tt0 * np.ones((2, 1)), line, "k--", linewidth=1)
-ax2.plot(tt1 * np.ones((2, 1)), line, "k--", linewidth=1)
-ax2.legend(
-    loc="center",
-    bbox_to_anchor=(0.6, -0.4),
-    borderaxespad=0.0,
-    fontsize=10,
-    frameon=False,
-)  # bbox_to_anchor的坐标决定loc那个点的位置
-# plt.subplots_adjust(left=0.15, right=1-0.01,bottom=0.08, top=1-0.08,wspace=None, hspace=0.25)
-# plt.tight_layout()#自动调整大小和间距，使各个子图标签不重叠
-
-fig17 = plt.figure("平面绝对误差演化图", dpi=dpi, constrained_layout=True)
-norm1 = matplotlib.colors.Normalize(
-    vmin=np.min(
-        [
-            np.abs(EExact_h - EH_pred),
-            np.abs(pExact_h - pH_pred),
-            np.abs(etaExact_h - etaH_pred),
-        ]
-    ),
-    vmax=np.max(
-        [
-            np.abs(EExact_h - EH_pred),
-            np.abs(pExact_h - pH_pred),
-            np.abs(etaExact_h - etaH_pred),
-        ]
-    ),
-)
-plt.suptitle("Absolute error")
-ax0 = plt.subplot(3, 1, 1)
-# ax0.set_title("Absolute error dynamics")
-ax0.set_ylabel("$|E(t,z)|$")
-h0 = ax0.imshow(
-    np.abs(EExact_h - EH_pred).T,
-    interpolation="nearest",
-    cmap="pink_r",  # PuOr
-    extent=[t_lower, t_upper, z_lower, z_upper],
-    norm=norm1,
-    origin="lower",
-    aspect="auto",
-)
-# plt.colorbar(h, ax=ax0)
-ax1 = plt.subplot(3, 1, 2)
-ax1.set_ylabel("$|p(t,z)|$")
-h1 = ax1.imshow(
-    np.abs(pExact_h - pH_pred).T,
-    interpolation="nearest",
-    cmap="pink_r",
-    extent=[t_lower, t_upper, z_lower, z_upper],
-    norm=norm1,
-    origin="lower",
-    aspect="auto",
-)
-# plt.colorbar(h, ax=ax1)
-ax2 = plt.subplot(3, 1, 3)
-ax2.set_ylabel("$|\eta(t,z)|$")
-h2 = ax2.imshow(
-    np.abs(etaExact_h - etaH_pred).T,
-    interpolation="nearest",
-    cmap="pink_r",  # seismic
-    extent=[t_lower, t_upper, z_lower, z_upper],
-    norm=norm1,
-    origin="lower",
-    aspect="auto",
-)
-# plt.colorbar(h, ax=ax2)
-fig17.colorbar(h0, ax=[ax0, ax1, ax2], location="right")
-# plt.subplots_adjust(left=0.15, right=1-0.01,bottom=0.08, top=1-0.08,wspace=None, hspace=0.25)
-# plt.tight_layout()#自动调整大小和间距，使各个子图标签不重叠
-
-# plt.savefig(r'F:\QQ截屏录屏\亮亮暗2\d')
-
-dde.saveplot(losshistory, train_state, issave=True, isplot=True)
 
 io.savemat(
-    "预测结果_亮亮暗.mat",
+    folder_name + f"/预测结果_{os.path.basename(os.getcwd())}.mat",
     {
         "x": x,
         "t": t,
@@ -686,5 +491,4 @@ io.savemat(
         "etaExact_h": etaExact_h,
     },
 )
-
-plt.show()
+# plt.show()
