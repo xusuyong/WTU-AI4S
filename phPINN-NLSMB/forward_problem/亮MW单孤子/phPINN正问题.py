@@ -1,14 +1,18 @@
 """Backend supported: tensorflow.compat.v1, tensorflow, pytorch, paddle"""
 import os
+import time
+
+time_string = time.strftime("%Y年%m月%d日%H时%M分%S秒", time.localtime())
+
+folder_name = f"output_{time_string}"
 
 os.environ["DDEBACKEND"] = "pytorch"
-os.makedirs("output_dir", exist_ok=True)
+os.makedirs(folder_name, exist_ok=True)
 import deepxde as dde
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy import exp, cos, sin, log, tanh, cosh, real, imag, sinh, sqrt, arctan
 from scipy import io
-import time
 
 start_time = time.time()
 
@@ -183,7 +187,7 @@ observe_y2 = dde.icbc.PointSetBC(X_u_train, pu_train, component=2)
 observe_y3 = dde.icbc.PointSetBC(X_u_train, pv_train, component=3)
 observe_y4 = dde.icbc.PointSetBC(X_u_train, eta_train, component=4)
 # Network architecture
-PFNN = True
+PFNN = False
 net = (
     dde.nn.PFNN(
         [
@@ -236,13 +240,13 @@ model.compile(
 # model.restore("output_dir/-350.pt")
 
 losshistory, train_state = model.train(
-    iterations=100,
+    iterations=iterations,
     display_every=100,
-    model_save_path="output_dir/",
+    model_save_path=folder_name + "/",
     callbacks=[resampler],
 )
 
-RAR = True
+RAR = False
 if RAR:
     for i in range(5):  # 一下添加几个点，总共这些次
         XTrar = geomtime.random_points(100000)
@@ -252,8 +256,6 @@ if RAR:
         err = np.mean(err_eq)
         print("Mean residual: %.3e" % (err))
         x_ids = np.argsort(err_eq)[-100:]
-
-        # for elem in x_ids:
         print("Adding new point:", XTrar[x_ids], "\n")
         data.add_anchors(XTrar[x_ids])
         early_stopping = dde.callbacks.EarlyStopping(min_delta=1e-4, patience=2000)
@@ -263,11 +265,11 @@ if RAR:
             iterations=50,
             display_every=100,
             disregard_previous_best=True,
-            model_save_path="output_dir/",
+            model_save_path=folder_name + "/",
             callbacks=[early_stopping, resampler],
         )
 
-LBFGS = True
+LBFGS = False
 if LBFGS:
     dde.optimizers.config.set_LBFGS_options(
         maxcor=50,
@@ -283,7 +285,7 @@ if LBFGS:
         loss_weights=loss_weights,
     )
     losshistory, train_state = model.train(
-        display_every=100, model_save_path="output_dir/", callbacks=[resampler]
+        display_every=100, model_save_path=folder_name + "/", callbacks=[resampler]
     )
 
 elapsed = time.time() - start_time
@@ -292,7 +294,6 @@ elapsed = time.time() - start_time
 Eh_true = np.sqrt(Eu_true**2 + Ev_true**2).flatten()
 ph_true = np.sqrt(pu_true**2 + pv_true**2).flatten()
 etah_true = np.abs(eta_true).flatten()
-# Make prediction
 # 预测解
 prediction = model.predict(X_star)
 Eu_pred = prediction[:, 0]
@@ -310,11 +311,9 @@ print("E L2 relative error: %e" % E_L2_relative_error)
 print("p L2 relative error: %e" % p_L2_relative_error)
 print("eta L2 relative error: %e" % eta_L2_relative_error)
 
-"""精确解"""
 EExact_h = Eh_true.reshape(nt, nx)
 pExact_h = ph_true.reshape(nt, nx)
 etaExact_h = etah_true.reshape(nt, nx)
-"""预测解"""
 EH_pred = Eh_pred.reshape(nt, nx)
 pH_pred = ph_pred.reshape(nt, nx)
 etaH_pred = etah_pred.reshape(nt, nx)
@@ -326,312 +325,123 @@ elevation = 20
 azimuth = -40
 dpi = 300
 
-fig101 = plt.figure("E对比图", dpi=dpi)
-ax = plt.subplot(2, 1, 1)
-tt0 = -2
-index = round((tt0 - t_lower) / A * (nt - 1))
-plt.plot(x, EExact_h[index, :], "b-", linewidth=2, label="Exact")
-plt.plot(x, EH_pred[index, :], "r--", linewidth=2, label="Prediction")
-ax.set_ylabel("$|E(t,z)|$")
-ax.set_xlabel("$z$")
-plt.title("t=%s" % tt0)
-plt.legend()
-ax = plt.subplot(2, 1, 2)
-tt1 = 2
-index = round((tt1 - t_lower) / A * (nt - 1))
-plt.plot(x, EExact_h[index, :], "b-", linewidth=2, label="Exact")
-plt.plot(x, EH_pred[index, :], "r--", linewidth=2, label="Prediction")
-ax.set_ylabel("$|E(t,z)|$")
-ax.set_xlabel("$z$")
-plt.title("t=%s" % tt1)
-plt.legend()
-fig101.tight_layout()
+dde.saveplot(losshistory, train_state, issave=True, isplot=True, output_dir=folder_name)
 
-fig102 = plt.figure("p对比图", dpi=dpi)
-ax = plt.subplot(2, 1, 1)
-# tt0 = -2
-index = round((tt0 - t_lower) / A * (nt - 1))
-plt.plot(x, pExact_h[index, :], "b-", linewidth=2, label="Exact")
-plt.plot(x, pH_pred[index, :], "r--", linewidth=2, label="Prediction")
-ax.set_ylabel("$|p(t,z)|$")
-ax.set_xlabel("$z$")
-plt.title("t=%s" % tt0)
-plt.legend()
-ax = plt.subplot(2, 1, 2)
-# tt1 = 2
-index = round((tt1 - t_lower) / A * (nt - 1))
-plt.plot(x, pExact_h[index, :], "b-", linewidth=2, label="Exact")
-plt.plot(x, pH_pred[index, :], "r--", linewidth=2, label="Prediction")
-ax.set_ylabel("$|p(t,z)|$")
-ax.set_xlabel("$z$")
-plt.title("t=%s" % tt1)
-plt.legend()
-fig102.tight_layout()
 
-fig103 = plt.figure("eta对比图", dpi=dpi)
-ax = plt.subplot(2, 1, 1)
-# tt0 = -2
-index = round((tt0 - t_lower) / A * (nt - 1))
-plt.plot(x, etaExact_h[index, :], "b-", linewidth=2, label="Exact")
-plt.plot(x, etaH_pred[index, :], "r--", linewidth=2, label="Prediction")
-ax.set_ylabel("$|\eta(t,z)|$")
-ax.set_xlabel("$z$")
-plt.title("t=%s" % tt0)
-plt.legend()
-ax = plt.subplot(2, 1, 2)
-# tt1 = 2
-index = round((tt1 - t_lower) / A * (nt - 1))
-plt.plot(x, etaExact_h[index, :], "b-", linewidth=2, label="Exact")
-plt.plot(x, etaH_pred[index, :], "r--", linewidth=2, label="Prediction")
-ax.set_ylabel("$|\eta(t,z)|$")
-ax.set_xlabel("$z$")
-plt.title("t=%s" % tt1)
-plt.legend()
-fig103.tight_layout()
+def plot_compare(H_exact, H_pred, tt0, tt1, name):
+    fig101 = plt.figure(dpi=dpi)
+    ax = plt.subplot(2, 1, 1)
 
-fig5 = plt.figure("3d预测演化图E", dpi=dpi, facecolor=None, edgecolor=None)
-ax = fig5.add_subplot(projection="3d")
-surf = ax.plot_surface(
-    X,
-    T,
-    EH_pred,
-    rstride=stride,  # 指定行的跨度
-    cstride=stride,  # 指定列的跨度
-    cmap="Spectral",  # 设置颜色映射 还可以设置成YlGnBu_r和viridis
-    linewidth=0,
-    antialiased=False,
-)  # 抗锯齿
-# ax.grid(False)#关闭背景的网格线
-ax.set_xlabel("$z$")
-ax.set_ylabel("$t$")
-ax.set_zlabel("$|E(t,z)|$")
-# fig5.colorbar(surf, shrink=0.5, aspect=5)
-ax.view_init(elevation, azimuth)
+    index = round((tt0 - t_lower) / A * (nt - 1))
+    plt.plot(x, H_exact[index, :], "b-", linewidth=2, label="Exact")
+    plt.plot(x, H_pred[index, :], "r--", linewidth=2, label="Prediction")
+    ax.set_ylabel(f"$|{name}(t,z)|$")
+    ax.set_xlabel("$z$")
+    plt.title("t=%s" % tt0)
+    plt.legend()
+    ax = plt.subplot(2, 1, 2)
 
-fig6 = plt.figure("3d预测演化图p", dpi=dpi, facecolor=None, edgecolor=None)
-ax = fig6.add_subplot(projection="3d")
-surf = ax.plot_surface(
-    X,
-    T,
-    pH_pred,
-    rstride=stride,  # 指定行的跨度
-    cstride=stride,  # 指定列的跨度
-    cmap="Spectral",  # 设置颜色映射
-    linewidth=0,
-    antialiased=False,
-)  # 抗锯齿
-# ax.grid(False)#关闭背景的网格线
-ax.set_xlabel("$z$")
-ax.set_ylabel("$t$")
-ax.set_zlabel("$|p(t,z)|$")
-# fig6.colorbar(surf, shrink=0.5, aspect=5)
-ax.view_init(elevation, azimuth)
+    index = round((tt1 - t_lower) / A * (nt - 1))
+    plt.plot(x, H_exact[index, :], "b-", linewidth=2, label="Exact")
+    plt.plot(x, H_pred[index, :], "r--", linewidth=2, label="Prediction")
+    ax.set_ylabel(f"$|{name}(t,z)|$")
+    ax.set_xlabel("$z$")
+    plt.title("t=%s" % tt1)
+    plt.legend()
+    fig101.tight_layout()
+    plt.savefig(folder_name + f"/对比图{name}.pdf", dpi="figure")
 
-fig7 = plt.figure("3d预测演化图eta", dpi=dpi, facecolor=None, edgecolor=None)
-ax = fig7.add_subplot(projection="3d")
-surf = ax.plot_surface(
-    X,
-    T,
-    etaH_pred,
-    rstride=stride,  # 指定行的跨度
-    cstride=stride,  # 指定列的跨度
-    cmap="Spectral",  # 设置颜色映射
-    linewidth=0,
-    antialiased=False,
-)  # 抗锯齿
-# ax.grid(False)#关闭背景的网格线
-ax.set_xlabel("$z$")
-ax.set_ylabel("$t$")
-ax.set_zlabel("$|\eta(t,z)|$")
-# fig7.colorbar(surf, shrink=0.5, aspect=5)
-ax.view_init(elevation, azimuth)
 
-fig8 = plt.figure("3d真解E", dpi=dpi, facecolor=None, edgecolor=None)
-ax = fig8.add_subplot(projection="3d")
-surf = ax.plot_surface(
-    X,
-    T,
-    EExact_h,
-    rstride=stride,  # 指定行的跨度
-    cstride=stride,  # 指定列的跨度
-    cmap="coolwarm",  # 设置颜色映射 还可以设置成YlGnBu_r和viridis
-    linewidth=0,
-    antialiased=False,
-)  # 抗锯齿
-# ax.grid(False)#关闭背景的网格线
-ax.set_xlabel("$z$")
-ax.set_ylabel("$t$")
-ax.set_zlabel("$|E(t,z)|$")
-# fig8.colorbar(surf, shrink=0.5, aspect=5)
-ax.view_init(elevation, azimuth)
+plot_compare(EExact_h, EH_pred, -2, 2, "E")
+plot_compare(pExact_h, pH_pred, -2, 2, "p")
+plot_compare(etaExact_h, etaH_pred, -2, 2, "eta")
 
-fig9 = plt.figure("3d真解p", dpi=dpi, facecolor=None, edgecolor=None)
-ax = fig9.add_subplot(projection="3d")
-surf = ax.plot_surface(
-    X,
-    T,
-    pExact_h,
-    rstride=stride,  # 指定行的跨度
-    cstride=stride,  # 指定列的跨度
-    cmap="coolwarm",  # 设置颜色映射
-    linewidth=0,
-    antialiased=False,
-)  # 抗锯齿
-# ax.grid(False)#关闭背景的网格线
-ax.set_xlabel("$z$")
-ax.set_ylabel("$t$")
-ax.set_zlabel("$|p(t,z)|$")
-# fig9.colorbar(surf, shrink=0.5, aspect=5)
-ax.view_init(elevation, azimuth)
 
-fig10 = plt.figure("3d真解eta", dpi=dpi, facecolor=None, edgecolor=None)
-ax = fig10.add_subplot(projection="3d")
-surf = ax.plot_surface(
-    X,
-    T,
-    etaExact_h,
-    rstride=stride,  # 指定行的跨度
-    cstride=stride,  # 指定列的跨度
-    cmap="coolwarm",  # 设置颜色映射
-    linewidth=0,
-    antialiased=False,
-)  # 抗锯齿
-# ax.grid(False)#关闭背景的网格线
-ax.set_xlabel("$z$")
-ax.set_ylabel("$t$")
-ax.set_zlabel("$|\eta(t,z)|$")
-# fig10.colorbar(surf, shrink=0.5, aspect=5)
-ax.view_init(elevation, azimuth)
+def plot3d(X, Y, Z, name, cmap):
+    fig5 = plt.figure(dpi=dpi, facecolor=None, edgecolor=None, layout="tight")
+    ax = fig5.add_subplot(projection="3d")
+    surf = ax.plot_surface(
+        X,
+        Y,
+        Z,
+        rstride=stride,  # 指定行的跨度
+        cstride=stride,  # 指定列的跨度
+        cmap=cmap,  # 设置颜色映射 还可以设置成YlGnBu_r和viridis
+        linewidth=0,
+        antialiased=False,
+    )
+    # ax.grid(False)#关闭背景的网格线
+    ax.set_xlabel("$z$")
+    ax.set_ylabel("$t$")
+    ax.set_zlabel("$|E(t,z)|$")
+    # fig5.colorbar(surf, shrink=0.5, aspect=5)
+    ax.view_init(elevation, azimuth)
+    plt.savefig(folder_name + f"/3维图{name}.pdf", dpi="figure")
 
-# dde薛定谔里的图
-fig15 = plt.figure("平面预测演化图", dpi=dpi)
-ax0 = plt.subplot(3, 1, 1)
-ax0.set_title("Prediction Dynamics")
-ax0.set_ylabel("E Amplitude")
-h = ax0.imshow(
-    EH_pred.T,
-    interpolation="nearest",
+
+plot3d(X, T, EH_pred, "EH_pred", cmap="Spectral")
+plot3d(X, T, pH_pred, "pH_pred", cmap="Spectral")
+plot3d(X, T, etaH_pred, "etaH_pred", cmap="Spectral")
+plot3d(X, T, EExact_h, "EExact_h", cmap="coolwarm")
+plot3d(X, T, pExact_h, "pExact_h", cmap="coolwarm")
+plot3d(X, T, etaExact_h, "etaExact_h", cmap="coolwarm")
+
+
+def plot2d(E, p, eta, name, cmap):
+    fig15 = plt.figure(dpi=dpi)
+    # plt.title(f"{name}")
+    ax0 = plt.subplot(3, 1, 1)
+    ax0.set_title(f"{name}")
+    ax0.set_ylabel("$E$")
+    h = ax0.imshow(
+        E.T,
+        interpolation="nearest",
+        cmap=cmap,
+        extent=[t_lower, t_upper, z_lower, z_upper],
+        origin="lower",
+        aspect="auto",
+    )
+    fig15.colorbar(h, ax=ax0)
+    ax1 = plt.subplot(3, 1, 2)
+    ax1.set_ylabel("$p$")
+    h = ax1.imshow(
+        p.T,
+        interpolation="nearest",
+        cmap=cmap,
+        extent=[t_lower, t_upper, z_lower, z_upper],
+        origin="lower",
+        aspect="auto",
+    )
+    fig15.colorbar(h, ax=ax1)
+    ax2 = plt.subplot(3, 1, 3)
+    ax2.set_ylabel("$\eta$")
+    h = ax2.imshow(
+        eta.T,
+        interpolation="nearest",
+        cmap=cmap,
+        extent=[t_lower, t_upper, z_lower, z_upper],
+        origin="lower",
+        aspect="auto",
+    )
+    fig15.colorbar(h, ax=ax2)
+    plt.subplots_adjust(
+        left=0.15, right=1 - 0.01, bottom=0.08, top=1 - 0.08, wspace=None, hspace=0.25
+    )
+    plt.savefig(folder_name + f"/投影图{name}.pdf", dpi="figure")
+
+
+plot2d(EH_pred, pH_pred, etaH_pred, "Prediction", cmap="viridis")
+plot2d(EExact_h, pExact_h, etaExact_h, "Exact", cmap="viridis")
+plot2d(
+    np.abs(EH_pred - EExact_h),
+    np.abs(pH_pred - pExact_h),
+    np.abs(etaH_pred - etaExact_h),
+    "Absolute error",
     cmap="viridis",
-    extent=[t_lower, t_upper, z_lower, z_upper],
-    origin="lower",
-    aspect="auto",
-)
-fig15.colorbar(h, ax=ax0)
-ax1 = plt.subplot(3, 1, 2)
-ax1.set_ylabel("p Amplitude")
-h = ax1.imshow(
-    pH_pred.T,
-    interpolation="nearest",
-    cmap="viridis",
-    extent=[t_lower, t_upper, z_lower, z_upper],
-    origin="lower",
-    aspect="auto",
-)
-fig15.colorbar(h, ax=ax1)
-ax2 = plt.subplot(3, 1, 3)
-ax2.set_ylabel("$\eta$ Amplitude")
-h = ax2.imshow(
-    etaH_pred.T,
-    interpolation="nearest",
-    cmap="viridis",
-    extent=[t_lower, t_upper, z_lower, z_upper],
-    origin="lower",
-    aspect="auto",
-)
-fig15.colorbar(h, ax=ax2)
-plt.subplots_adjust(
-    left=0.15, right=1 - 0.01, bottom=0.08, top=1 - 0.08, wspace=None, hspace=0.25
-)
-
-fig16 = plt.figure("平面实际演化图", dpi=dpi)
-ax0 = plt.subplot(3, 1, 1)
-
-ax0.set_title("Exact Dynamics")
-ax0.set_ylabel("E Amplitude")
-h = ax0.imshow(
-    EExact_h.T,
-    interpolation="nearest",
-    cmap="viridis",
-    extent=[t_lower, t_upper, z_lower, z_upper],
-    origin="lower",
-    aspect="auto",
-)
-fig16.colorbar(h, ax=ax0)
-
-ax1 = plt.subplot(3, 1, 2)
-ax1.set_ylabel("p Amplitude")
-h = ax1.imshow(
-    pExact_h.T,
-    interpolation="nearest",
-    cmap="viridis",
-    extent=[t_lower, t_upper, z_lower, z_upper],
-    origin="lower",
-    aspect="auto",
-)
-fig16.colorbar(h, ax=ax1)
-
-ax2 = plt.subplot(3, 1, 3)
-ax2.set_ylabel("$\eta$ Amplitude")
-h = ax2.imshow(
-    etaExact_h.T,
-    interpolation="nearest",
-    cmap="viridis",
-    extent=[t_lower, t_upper, z_lower, z_upper],
-    origin="lower",
-    aspect="auto",
-)
-fig16.colorbar(h, ax=ax2)
-plt.subplots_adjust(
-    left=0.15, right=1 - 0.01, bottom=0.08, top=1 - 0.08, wspace=None, hspace=0.25
-)
-
-
-fig17 = plt.figure("平面误差演化图", dpi=dpi)
-ax0 = plt.subplot(3, 1, 1)
-
-ax0.set_title("Error Dynamics")
-ax0.set_ylabel("E Error")
-h = ax0.imshow(
-    EH_pred.T - EExact_h.T,
-    interpolation="nearest",
-    cmap="PuOr",
-    extent=[t_lower, t_upper, z_lower, z_upper],
-    origin="lower",
-    aspect="auto",
-)
-fig17.colorbar(h, ax=ax0)
-ax1 = plt.subplot(3, 1, 2)
-ax1.set_ylabel("p Error")
-h = ax1.imshow(
-    pH_pred.T - pExact_h.T,
-    interpolation="nearest",
-    cmap="PiYG",
-    extent=[t_lower, t_upper, z_lower, z_upper],
-    origin="lower",
-    aspect="auto",
-)
-fig17.colorbar(h, ax=ax1)
-ax2 = plt.subplot(3, 1, 3)
-ax2.set_ylabel("$\eta$ Error")
-h = ax2.imshow(
-    etaH_pred.T - etaExact_h.T,
-    interpolation="nearest",
-    cmap="seismic",
-    extent=[t_lower, t_upper, z_lower, z_upper],
-    origin="lower",
-    aspect="auto",
-)
-fig17.colorbar(h, ax=ax2)
-plt.subplots_adjust(
-    left=0.15, right=1 - 0.01, bottom=0.08, top=1 - 0.08, wspace=None, hspace=0.25
-)
-
-dde.saveplot(
-    losshistory, train_state, issave=True, isplot=True, output_dir="output_dir/"
 )
 
 io.savemat(
-    "output_dir/文献75亮MW单孤子.mat",
+    folder_name + f"/预测结果_{os.path.basename(os.getcwd())}.mat",
     {
         "x": x,
         "t": t,
@@ -648,4 +458,4 @@ io.savemat(
         "etaExact_h": etaExact_h,
     },
 )
-plt.show()
+# plt.show()
