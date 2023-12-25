@@ -15,7 +15,7 @@ from numpy import exp, cos, sin, log, tanh, cosh, real, imag, sinh, sqrt, arctan
 from scipy import io
 
 start_time = time.time()
-
+# dde.config.set_default_float("float64")
 if dde.backend.backend_name == "paddle":
     import paddle
 
@@ -40,7 +40,7 @@ else:
     exp_tensor = tf.math.exp
     cosh_tensor = tf.math.cosh
     concat = tf.concat
-# dde.config.set_default_float("float64")
+
 z_lower = -2
 z_upper = 2
 t_lower = -3
