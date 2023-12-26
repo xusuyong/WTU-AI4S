@@ -4,16 +4,10 @@ import matplotlib.pyplot as plt
 import matplotlib
 
 # %%
-<<<<<<< Updated upstream
-folder_name = "output_2023年12月25日14时26分16秒"
+folder_name = "output_2023年12月25日21时15分44秒"
 file0 = f"{folder_name}/loss.dat"
 data1 = io.loadmat(f"{folder_name}/预测结果_亮MW单孤子.mat")
-=======
-file0 = r"D:\PyCharm 2023.3.1\demo\WTU-4S\phPINN-NLSMB\forward_problem\亮MW单孤子\output_2023年12月25日21时15分44秒\loss.dat"
-data1 = io.loadmat(
-    r"D:\PyCharm 2023.3.1\demo\WTU-4S\phPINN-NLSMB\forward_problem\亮MW单孤子\output_2023年12月25日21时15分44秒\预测结果_亮MW单孤子.mat"
-)
->>>>>>> Stashed changes
+
 tt0 = -2
 tt1 = 2
 x = data1["x"].flatten()
@@ -350,9 +344,6 @@ subfigs[2, 1].text(
 )
 
 
-<<<<<<< Updated upstream
+
 plt.savefig(f"{folder_name}/亮MW.pdf", dpi="figure")
-=======
-plt.savefig("output_2023年12月25日21时15分44秒/亮MW.pdf", dpi="figure")
->>>>>>> Stashed changes
 plt.show()
