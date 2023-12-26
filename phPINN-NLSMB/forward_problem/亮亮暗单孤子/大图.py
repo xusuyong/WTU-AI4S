@@ -5,8 +5,10 @@ import matplotlib
 import csv  # 导入csv模块
 
 # %%
-file0 = "loss.dat"
-data1 = io.loadmat("预测结果_亮亮暗.mat")
+file0 = r"D:\PyCharm 2023.3.1\demo\WTU-4S\phPINN-NLSMB\forward_problem\亮亮暗单孤子\output_2023年12月26日16时47分57秒\loss.dat"
+data1 = io.loadmat(
+    r"D:\PyCharm 2023.3.1\demo\WTU-4S\phPINN-NLSMB\forward_problem\亮亮暗单孤子\output_2023年12月26日16时47分57秒\预测结果_亮亮暗单孤子.mat"
+)
 tt0 = -2
 tt1 = 2
 x = data1["x"]
