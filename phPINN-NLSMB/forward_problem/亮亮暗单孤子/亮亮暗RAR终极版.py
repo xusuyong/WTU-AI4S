@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy import exp, cos, sin, log, tanh, cosh, real, imag, sinh, sqrt, arctan
 from scipy import io
+import matplotlib
 
 start_time = time.time()
 # dde.config.set_default_float("float64")
@@ -122,26 +123,27 @@ etaExact_u = np.real(etaExact)
 
 
 def solution(XT):
-    x = XT[:, 0:1]
-    t = XT[:, 1:2]
+    X = XT[:, 0:1]
+    T = XT[:, 1:2]
 
-    Eu_true = 2 * cos(2 * t) / cosh(2 * t + 6 * x)
-
-    Ev_true = -2 * sin(2 * t) / cosh(2 * t + 6 * x)
-
-    pu_true = (
-        (exp(-2 * t - 6 * x) - exp(2 * t + 6 * x))
-        * cos(2 * t)
-        / cosh(2 * t + 6 * x) ** 2
+    EExact = 2 * exp(-2 * I / 5 * (5 * T - 2 * X)) / cosh(2 * T + (22 * X) / 5)
+    pExact = (
+            -I
+            / 5
+            * exp(-2 * I / 5 * (5 * T - 2 * X))
+            * ((-2 + I) * exp(-2 * T - (22 * X) / 5) - (2 + I) * exp(2 * T + (22 * X) / 5))
+            / cosh(2 * T + (22 * X) / 5) ** 2
     )
-    pv_true = (
-        -(exp(-2 * t - 6 * x) - exp(2 * t + 6 * x))
-        * sin(2 * t)
-        / cosh(2 * t + 6 * x) ** 2
+    etaExact = (5 * cosh(2 * T + (22 * X) / 5) ** 2 - 2) / (
+            5 * cosh(2 * T + (22 * X) / 5) ** 2
     )
-    eta_true = (cosh(2 * t + 6 * x) ** 2 - 2) / cosh(2 * t + 6 * x) ** 2
+    EExact_u = real(EExact)  # (201,256)
+    EExact_v = imag(EExact)
+    pExact_u = real(pExact)
+    pExact_v = imag(pExact)
+    etaExact_u = real(etaExact)
 
-    return Eu_true, Ev_true, pu_true, pv_true, eta_true
+    return EExact_u, EExact_v, pExact_u, pExact_v, etaExact_u
 
 
 def output_transform(XT, y):
@@ -273,7 +275,7 @@ losshistory, train_state = model.train(
     callbacks=[resampler],
 )
 
-RAR = True
+RAR = False
 if RAR:
     for i in range(5):  # 一下添加几个点，总共这些次
         XTrar = geomtime.random_points(100000)
@@ -296,7 +298,7 @@ if RAR:
             callbacks=[early_stopping, resampler],
         )
 
-LBFGS = True
+LBFGS = False
 if LBFGS:
     dde.optimizers.config.set_LBFGS_options(
         maxcor=50,
@@ -357,6 +359,8 @@ stride = 5
 elevation = 20
 azimuth = -40
 dpi = 300
+
+# norm0 = None
 
 dde.saveplot(losshistory, train_state, issave=True, isplot=True, output_dir=folder_name)
 
@@ -419,48 +423,52 @@ plot3d(X, T, EExact_h, "EExact_h", cmap="coolwarm")
 plot3d(X, T, pExact_h, "pExact_h", cmap="coolwarm")
 plot3d(X, T, etaExact_h, "etaExact_h", cmap="coolwarm")
 
-
 def plot2d(E, p, eta, name, cmap):
-    fig15 = plt.figure(dpi=dpi)
+    norm = matplotlib.colors.Normalize(
+        vmin=np.min([E, p, eta]),
+        vmax=np.max([E, p, eta]),
+    )
+    fig15 = plt.figure(dpi=dpi,layout="constrained")
     # plt.title(f"{name}")
-    ax0 = plt.subplot(3, 1, 1)
-    ax0.set_title(f"{name}")
-    ax0.set_ylabel("$E$")
-    h = ax0.imshow(
+    ax = fig15.subplots(3, 1, sharex=True)
+    ax[0].set_title(f"{name}")
+    # ax3.set_title("Prediction Dynamics")
+    ax[0].set_ylabel("$|E(t,z)|$", fontsize="medium")
+    h = ax[0].imshow(
         E.T,
         interpolation="nearest",
         cmap=cmap,
         extent=[t_lower, t_upper, z_lower, z_upper],
+        norm=norm,
         origin="lower",
         aspect="auto",
     )
-    fig15.colorbar(h, ax=ax0)
-    ax1 = plt.subplot(3, 1, 2)
-    ax1.set_ylabel("$p$")
-    h = ax1.imshow(
+    ax[1].set_ylabel("$|p(t,z)|$", fontsize="medium")
+    h = ax[1].imshow(
         p.T,
         interpolation="nearest",
         cmap=cmap,
         extent=[t_lower, t_upper, z_lower, z_upper],
+        norm=norm,
         origin="lower",
         aspect="auto",
     )
-    fig15.colorbar(h, ax=ax1)
-    ax2 = plt.subplot(3, 1, 3)
-    ax2.set_ylabel("$\eta$")
-    h = ax2.imshow(
+    ax[2].set_ylabel("$|\eta(t,z)|$", fontsize="medium")
+    h = ax[2].imshow(
         eta.T,
         interpolation="nearest",
         cmap=cmap,
         extent=[t_lower, t_upper, z_lower, z_upper],
+        norm=norm,
         origin="lower",
         aspect="auto",
     )
-    fig15.colorbar(h, ax=ax2)
-    plt.subplots_adjust(
-        left=0.15, right=1 - 0.01, bottom=0.08, top=1 - 0.08, wspace=None, hspace=0.25
-    )
+    fig15.colorbar(h, ax=ax)
+    # plt.subplots_adjust(
+    #     left=0.15, right=1 - 0.01, bottom=0.08, top=1 - 0.08, wspace=None, hspace=0.25
+    # )
     plt.savefig(folder_name + f"/投影图{name}.pdf", dpi="figure")
+
 
 
 plot2d(EH_pred, pH_pred, etaH_pred, "Prediction", cmap="viridis")
