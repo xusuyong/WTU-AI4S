@@ -1,7 +1,7 @@
 """Backend supported: tensorflow.compat.v1, tensorflow, pytorch, paddle"""
 import os
 
-os.environ["DDEBACKEND"] = "paddle"
+os.environ["DDEBACKEND"] = "pytorch"
 os.makedirs("model", exist_ok=True)
 import deepxde as dde
 import matplotlib.pyplot as plt
@@ -169,8 +169,12 @@ def feature_transform(XT):
 
 net.apply_feature_transform(feature_transform)
 
-
 def output_transform(XT, y):
+    Eu = y[:, 0:1]
+    Ev = y[:, 1:2]
+    pu = y[:, 2:3]
+    pv = y[:, 3:4]
+    eta = y[:, 4:5]
     z = XT[:, 0:1]
     t = XT[:, 1:2]
 

@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy import exp, cos, sin, log, tanh, cosh, real, imag, sinh, sqrt, arctan
 from scipy import io
+import matplotlib
 
 time_string = time.strftime("%Y年%m月%d日%H时%M分%S秒", time.localtime())
 folder_name = f"output_{time_string}"
@@ -385,46 +386,50 @@ plot3d(X, T, etaExact_h, "etaExact_h", cmap="coolwarm")
 
 
 def plot2d(E, p, eta, name, cmap):
-    fig15 = plt.figure(dpi=dpi)
+    norm = matplotlib.colors.Normalize(
+        vmin=np.min([E, p, eta]),
+        vmax=np.max([E, p, eta]),
+    )
+    fig15 = plt.figure(dpi=dpi, layout="constrained")
     # plt.title(f"{name}")
-    ax0 = plt.subplot(3, 1, 1)
-    ax0.set_title(f"{name}")
-    ax0.set_ylabel("$E$")
-    h = ax0.imshow(
+    ax = fig15.subplots(3, 1, sharex=True)
+    ax[0].set_title(f"{name}")
+    # ax3.set_title("Prediction Dynamics")
+    ax[0].set_ylabel("$|E(t,z)|$", fontsize="medium")
+    h = ax[0].imshow(
         E.T,
         interpolation="nearest",
         cmap=cmap,
         extent=[t_lower, t_upper, z_lower, z_upper],
+        norm=norm,
         origin="lower",
         aspect="auto",
     )
-    fig15.colorbar(h, ax=ax0)
-    ax1 = plt.subplot(3, 1, 2)
-    ax1.set_ylabel("$p$")
-    h = ax1.imshow(
+    ax[1].set_ylabel("$|p(t,z)|$", fontsize="medium")
+    h = ax[1].imshow(
         p.T,
         interpolation="nearest",
         cmap=cmap,
         extent=[t_lower, t_upper, z_lower, z_upper],
+        norm=norm,
         origin="lower",
         aspect="auto",
     )
-    fig15.colorbar(h, ax=ax1)
-    ax2 = plt.subplot(3, 1, 3)
-    ax2.set_ylabel("$\eta$")
-    h = ax2.imshow(
+    ax[2].set_ylabel("$|\eta(t,z)|$", fontsize="medium")
+    h = ax[2].imshow(
         eta.T,
         interpolation="nearest",
         cmap=cmap,
         extent=[t_lower, t_upper, z_lower, z_upper],
+        norm=norm,
         origin="lower",
         aspect="auto",
     )
-    fig15.colorbar(h, ax=ax2)
-    plt.subplots_adjust(
-        left=0.15, right=1 - 0.01, bottom=0.08, top=1 - 0.08, wspace=None, hspace=0.25
-    )
-    plt.savefig(f"{folder_name}/投影图{name}.pdf", dpi="figure")
+    fig15.colorbar(h, ax=ax)
+    # plt.subplots_adjust(
+    #     left=0.15, right=1 - 0.01, bottom=0.08, top=1 - 0.08, wspace=None, hspace=0.25
+    # )
+    plt.savefig(folder_name + f"/投影图{name}.pdf", dpi="figure")
 
 
 plot2d(EH_pred, pH_pred, etaH_pred, "Prediction", cmap="viridis")

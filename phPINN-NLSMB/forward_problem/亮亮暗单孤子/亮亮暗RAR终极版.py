@@ -2,12 +2,7 @@
 import os
 import time
 
-time_string = time.strftime("%Y年%m月%d日%H时%M分%S秒", time.localtime())
-
-folder_name = f"output_{time_string}"
-
 os.environ["DDEBACKEND"] = "pytorch"
-os.makedirs(folder_name, exist_ok=True)
 import deepxde as dde
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,6 +10,9 @@ from numpy import exp, cos, sin, log, tanh, cosh, real, imag, sinh, sqrt, arctan
 from scipy import io
 import matplotlib
 
+time_string = time.strftime("%Y年%m月%d日%H时%M分%S秒", time.localtime())
+folder_name = f"output_{time_string}"
+os.makedirs(folder_name, exist_ok=True)
 start_time = time.time()
 # dde.config.set_default_float("float64")
 if dde.backend.backend_name == "paddle":
@@ -128,14 +126,14 @@ def solution(XT):
 
     EExact = 2 * exp(-2 * I / 5 * (5 * T - 2 * X)) / cosh(2 * T + (22 * X) / 5)
     pExact = (
-            -I
-            / 5
-            * exp(-2 * I / 5 * (5 * T - 2 * X))
-            * ((-2 + I) * exp(-2 * T - (22 * X) / 5) - (2 + I) * exp(2 * T + (22 * X) / 5))
-            / cosh(2 * T + (22 * X) / 5) ** 2
+        -I
+        / 5
+        * exp(-2 * I / 5 * (5 * T - 2 * X))
+        * ((-2 + I) * exp(-2 * T - (22 * X) / 5) - (2 + I) * exp(2 * T + (22 * X) / 5))
+        / cosh(2 * T + (22 * X) / 5) ** 2
     )
     etaExact = (5 * cosh(2 * T + (22 * X) / 5) ** 2 - 2) / (
-            5 * cosh(2 * T + (22 * X) / 5) ** 2
+        5 * cosh(2 * T + (22 * X) / 5) ** 2
     )
     EExact_u = real(EExact)  # (201,256)
     EExact_v = imag(EExact)
@@ -423,12 +421,13 @@ plot3d(X, T, EExact_h, "EExact_h", cmap="coolwarm")
 plot3d(X, T, pExact_h, "pExact_h", cmap="coolwarm")
 plot3d(X, T, etaExact_h, "etaExact_h", cmap="coolwarm")
 
+
 def plot2d(E, p, eta, name, cmap):
     norm = matplotlib.colors.Normalize(
         vmin=np.min([E, p, eta]),
         vmax=np.max([E, p, eta]),
     )
-    fig15 = plt.figure(dpi=dpi,layout="constrained")
+    fig15 = plt.figure(dpi=dpi, layout="constrained")
     # plt.title(f"{name}")
     ax = fig15.subplots(3, 1, sharex=True)
     ax[0].set_title(f"{name}")
@@ -468,7 +467,6 @@ def plot2d(E, p, eta, name, cmap):
     #     left=0.15, right=1 - 0.01, bottom=0.08, top=1 - 0.08, wspace=None, hspace=0.25
     # )
     plt.savefig(folder_name + f"/投影图{name}.pdf", dpi="figure")
-
 
 
 plot2d(EH_pred, pH_pred, etaH_pred, "Prediction", cmap="viridis")

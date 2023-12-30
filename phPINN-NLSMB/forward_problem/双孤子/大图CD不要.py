@@ -1,12 +1,13 @@
 import numpy as np
-import scipy.io  # python读取.mat数据之scipy.io&h5py
+from scipy import io  # python读取.mat数据之scipy.io&h5py
 import matplotlib.pyplot as plt
 import matplotlib
 import csv  # 导入csv模块
 
 # %%
-file0 = r"F:\QQ文件\NLS-MB项目\dde\文献47双孤子\训练数据\loss.dat"
-data1 = scipy.io.loadmat(r"F:\QQ文件\NLS-MB项目\dde\文献47双孤子\训练数据\预测结果_双孤子etav0.mat")
+folder_name = "output_2023年12月27日09时16分03秒"
+file0 = f"{folder_name}/loss.dat"
+data1 = io.loadmat(f"{folder_name}/预测结果_双孤子.mat")
 tt0 = -3
 tt1 = 3
 x = data1["x"]
@@ -311,5 +312,5 @@ subfigs[1, 1].text(
 # subfigs[2,1].text(0, 1, 'F', fontsize=18, style='normal', ha='left',va='top', wrap=True)
 
 # plt.savefig(r'C:\Users\hcxy\Desktop\NLS-MBpaper\亮亮暗')
-plt.savefig("双孤子原CD不要")
+plt.savefig(f"{folder_name}/双孤子.pdf", dpi="figure")
 plt.show()

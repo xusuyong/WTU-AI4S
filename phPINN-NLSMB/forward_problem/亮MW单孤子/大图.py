@@ -344,6 +344,5 @@ subfigs[2, 1].text(
 )
 
 
-
 plt.savefig(f"{folder_name}/亮MW.pdf", dpi="figure")
 plt.show()
