@@ -249,11 +249,12 @@ print(
 
 
 # 绘制边界
+plt.figure(dpi=300)
 plot_decision_boundary(lambda x: predict(parameters, x.T), X, Y)
 plt.title("Decision Boundary for hidden layer size " + str(4))
 
 
-plt.figure(figsize=(9, 9), layout="constrained")
+plt.figure(figsize=(9, 9), layout="constrained", dpi=300)
 hidden_layer_sizes = [1, 2, 3, 4, 5, 20, 50]  # 隐藏层数量
 for i, n_h in enumerate(hidden_layer_sizes):
     plt.subplot(3, 3, i + 1)

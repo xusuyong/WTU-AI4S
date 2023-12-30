@@ -10,6 +10,7 @@ import numpy as np
 from numpy import exp, cos, sin, log, tanh, cosh, real, imag, sinh, sqrt, arctan
 
 import re
+from scipy import io
 import time
 
 start_time = time.time()
@@ -603,12 +604,47 @@ fig17.colorbar(h0, ax=[ax0, ax1, ax2], location="right")
 # plt.subplots_adjust(left=0.15, right=1-0.01,bottom=0.08, top=1-0.08,wspace=None, hspace=0.25)
 # plt.tight_layout()#自动调整大小和间距，使各个子图标签不重叠
 
+l, c = Chat.shape
+plt.plot(range(0, period * l, period), Chat[:, 0], "r-")
+plt.plot(range(0, period * l, period), Chat[:, 1], "k-")
+plt.plot(range(0, period * l, period), Chat[:, 2], "g-")
+plt.plot(range(0, period * l, period), np.ones(Chat[:, 0].shape) * True_lambda1, "r--")
+plt.plot(range(0, period * l, period), np.ones(Chat[:, 1].shape) * True_lambda2, "k--")
+plt.plot(range(0, period * l, period), np.ones(Chat[:, 2].shape) * True_omega, "g--")
+plt.legend(
+    [
+        "$\lambda_1$",
+        "$\omega$",
+        "$\lambda_2$",
+        "True $\lambda_1$",
+        "True $\omega$",
+        "True $\lambda_2$",
+    ]
+)
+plt.xlabel("iterations")
+# plt.tight_layout()
 
-dde.saveplot(losshistory, train_state, issave=True, isplot=True, output_dir="model/")
-# scipy.io.savemat('bound-state.mat',
-#                  {'x': x, 't': t, 'elapsed': elapsed, 'X_u_train': X_u_train,
-#                   'U_L2_relative_error': U_L2_relative_error, 'V_L2_relative_error': V_L2_relative_error,
-#                   'phi0_L2_relative_error': phi0_L2_relative_error,
-#                   'UH_pred': UH_pred, 'VH_pred': VH_pred, 'phi0H_pred': phi0H_pred,
-#                   'UExact_h': UExact_h, 'VExact_h': VExact_h, 'phi0Exact_h': phi0Exact_h})
+
+dde.saveplot(losshistory, train_state, issave=True, isplot=True)
+io.savemat(
+    "反问题亮亮暗0的噪声0.5,-1,1.mat",
+    {
+        "x": x,
+        "t": t,
+        "elapsed": elapsed,
+        "X_u_train": X_u_train,
+        "E_L2_relative_error": E_L2_relative_error,
+        "p_L2_relative_error": p_L2_relative_error,
+        "eta_L2_relative_error": eta_L2_relative_error,
+        "EH_pred": EH_pred,
+        "pH_pred": pH_pred,
+        "etaH_pred": etaH_pred,
+        "EExact_h": EExact_h,
+        "pExact_h": pExact_h,
+        "etaExact_h": etaExact_h,
+        "error_lambda_1": error_lambda_1,
+        "error_lambda_2": error_lambda_2,
+        "error_omega": error_omega,
+    },
+)
 plt.show()
