@@ -622,7 +622,7 @@ plt.legend(
     ]
 )
 plt.xlabel("iterations")
-# plt.tight_layout()
+plt.tight_layout()
 
 
 dde.saveplot(losshistory, train_state, issave=True, isplot=True)
