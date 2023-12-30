@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
 import re
-import scipy.io  # python读取.mat数据之scipy.io&h5py
+from scipy import io
 import time
 
 start_time = time.time()
@@ -591,7 +591,7 @@ plt.xlabel("iterations")
 
 
 dde.saveplot(losshistory, train_state, issave=True, isplot=True)
-scipy.io.savemat(
+io.savemat(
     "反问题亮亮暗0的噪声0.5,-1,1.mat",
     {
         "x": x,
