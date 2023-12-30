@@ -604,6 +604,27 @@ fig17.colorbar(h0, ax=[ax0, ax1, ax2], location="right")
 # plt.subplots_adjust(left=0.15, right=1-0.01,bottom=0.08, top=1-0.08,wspace=None, hspace=0.25)
 # plt.tight_layout()#自动调整大小和间距，使各个子图标签不重叠
 
+l, c = Chat.shape
+plt.plot(range(0, period * l, period), Chat[:, 0], "r-")
+plt.plot(range(0, period * l, period), Chat[:, 1], "k-")
+plt.plot(range(0, period * l, period), Chat[:, 2], "g-")
+plt.plot(range(0, period * l, period), np.ones(Chat[:, 0].shape) * True_lambda1, "r--")
+plt.plot(range(0, period * l, period), np.ones(Chat[:, 1].shape) * True_lambda2, "k--")
+plt.plot(range(0, period * l, period), np.ones(Chat[:, 2].shape) * True_omega, "g--")
+plt.legend(
+    [
+        "$\lambda_1$",
+        "$\omega$",
+        "$\lambda_2$",
+        "True $\lambda_1$",
+        "True $\omega$",
+        "True $\lambda_2$",
+    ]
+)
+plt.xlabel("iterations")
+# plt.tight_layout()
+
+
 dde.saveplot(losshistory, train_state, issave=True, isplot=True)
 io.savemat(
     "反问题亮亮暗0的噪声0.5,-1,1.mat",
