@@ -2,15 +2,16 @@ import numpy as np
 from scipy import io
 import matplotlib.pyplot as plt
 import matplotlib
-import csv  # 导入csv模块
 
 # %%
-file0 = "loss.dat"
-data1 = io.loadmat("预测结果_亮亮暗.mat")
+folder_name = "output_2023年12月26日16时47分57秒"
+file0 = f"{folder_name}/loss.dat"
+data1 = io.loadmat(f"{folder_name}/预测结果_亮亮暗单孤子.mat")
+
 tt0 = -2
 tt1 = 2
-x = data1["x"]
-t = data1["t"]
+x = data1["x"].flatten()
+t = data1["t"].flatten()
 z_lower = np.min(x)
 z_upper = np.max(x)
 t_lower = np.min(t)
@@ -25,10 +26,10 @@ EH_pred = data1["EH_pred"]
 pH_pred = data1["pH_pred"]
 etaH_pred = data1["etaH_pred"]
 # X_u_train = data1['X_u_train']
-elapsed = data1["elapsed"][0][0]
-E_L2_relative_error = data1["E_L2_relative_error"][0][0]
-p_L2_relative_error = data1["p_L2_relative_error"][0][0]
-eta_L2_relative_error = data1["eta_L2_relative_error"][0][0]
+elapsed = data1["elapsed"][0, 0]
+E_L2_relative_error = data1["E_L2_relative_error"][0, 0]
+p_L2_relative_error = data1["p_L2_relative_error"][0, 0]
+eta_L2_relative_error = data1["eta_L2_relative_error"][0, 0]
 print("x", z_lower, z_upper, "  t", t_lower, t_upper)
 print("Training time: %.4fs or %.4fminutes" % (elapsed, elapsed / 60))
 print(
@@ -68,12 +69,12 @@ A = t_upper - t_lower
 stride = 5
 elevation = 20
 azimuth = -40
-dpi = 130
+dpi = 300
 aaa = 9
 cmap0 = "jet"  # PuOr seismic pink_r jet coolwarm summer ocean
 
 # %% 新画图
-fig = plt.figure(layout="constrained", figsize=(aaa, aaa / 2.5 * 3))
+fig = plt.figure(layout="constrained", figsize=(aaa, aaa / 2.5 * 3), dpi=dpi)
 
 # fig.suptitle('fig')
 
@@ -265,42 +266,14 @@ plt.legend(
 # %%第五个子图Loss
 subfigs[2, 0].set_facecolor("0.97")
 # subfigs[2,0].suptitle("Loss")
-with open(file0, "r", encoding="utf-8") as dat_file:
-    iterations, loss_train, loss_test = [], [], []
-    for line in dat_file:
-        if "#" in line:
-            continue
-        row = [field.strip() for field in line.split(" ")]
-        c1 = float(row[0])
-        c2 = float(
-            float(row[1])
-            + float(row[2])
-            + float(row[3])
-            + float(row[4])
-            + float(row[5])
-            + float(row[6])
-            + float(row[7])
-            + float(row[8])
-            + float(row[9])
-            + float(row[10])
-        )
-        c3 = float(
-            float(row[11])
-            + float(row[12])
-            + float(row[13])
-            + float(row[14])
-            + float(row[15])
-            + float(row[16])
-            + float(row[17])
-            + float(row[18])
-            + float(row[19])
-            + float(row[20])
-        )
-        iterations.append(c1)
-        loss_train.append(c2)
-        loss_test.append(c3)
-print("last train loss: %.6e" % c2, "iterations: %s" % iterations[-1])
-# print('last test loss: %.6e'%c3)
+data = np.loadtxt(file0, skiprows=1)
+iterations = data[:, 0]
+loss_len = (data.shape[1] - 1) // 2
+loss_train = np.sum(data[:, 1 : 1 + loss_len], axis=1)
+loss_test = np.sum(data[:, 1 + loss_len : 1 + loss_len + loss_len], axis=1)
+
+print("last train loss: %.6e" % loss_train[-1], "iterations: %s" % iterations[-1])
+print("last test loss: %.6e" % loss_test[-1])
 ax20 = subfigs[2, 0].subplots()
 # ax=fig16.add_subplot(3,2,4)
 plt.plot(iterations[:301], loss_train[:301], linewidth=1, label="Adam")
@@ -371,5 +344,5 @@ subfigs[2, 1].text(
 )
 
 
-plt.savefig("亮亮暗")
+plt.savefig(f"{folder_name}/亮亮暗单孤子.pdf", dpi="figure")
 plt.show()

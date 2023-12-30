@@ -4,9 +4,10 @@ import matplotlib.pyplot as plt
 import matplotlib
 
 # %%
-folder_name = "output_2023年12月25日14时26分16秒"
+folder_name = "output_2023年12月25日21时15分44秒"
 file0 = f"{folder_name}/loss.dat"
 data1 = io.loadmat(f"{folder_name}/预测结果_亮MW单孤子.mat")
+
 tt0 = -2
 tt1 = 2
 x = data1["x"].flatten()
