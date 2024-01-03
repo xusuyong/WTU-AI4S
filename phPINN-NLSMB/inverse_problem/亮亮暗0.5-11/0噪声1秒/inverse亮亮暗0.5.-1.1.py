@@ -66,24 +66,26 @@ true_var_dict = {"alpha_1": 0.5, "alpha_2": -1, "omega_0": 0.5}
 var_list = [alpha_1, alpha_2, omega_0]
 """X = x[:, 0:1]不能变成X = x[:, 0]!!!"""
 
+
 def solution(XT):
     X = XT[:, 0:1]
     T = XT[:, 1:2]
     EExact = 2 * np.exp(-2 * I / 5 * (5 * T - 2 * X)) / np.cosh(2 * T + (22 * X) / 5)
     pExact = (
-            -I
-            / 5
-            * np.exp(-2 * I / 5 * (5 * T - 2 * X))
-            * (
-                    (-2 + I) * np.exp(-2 * T - (22 * X) / 5)
-                    - (2 + I) * np.exp(2 * T + (22 * X) / 5)
-            )
-            / np.cosh(2 * T + (22 * X) / 5) ** 2
+        -I
+        / 5
+        * np.exp(-2 * I / 5 * (5 * T - 2 * X))
+        * (
+            (-2 + I) * np.exp(-2 * T - (22 * X) / 5)
+            - (2 + I) * np.exp(2 * T + (22 * X) / 5)
+        )
+        / np.cosh(2 * T + (22 * X) / 5) ** 2
     )
     etaExact = (5 * np.cosh(2 * T + (22 * X) / 5) ** 2 - 2) / (
-            5 * np.cosh(2 * T + (22 * X) / 5) ** 2
+        5 * np.cosh(2 * T + (22 * X) / 5) ** 2
     )
     return real(EExact), imag(EExact), real(pExact), imag(pExact), etaExact
+
 
 def pde(x, y):  # 这里x其实是x和t，y其实是u和v
     """
@@ -123,6 +125,7 @@ def pde(x, y):  # 这里x其实是x和t，y其实是u和v
     f3 = 2 * pv * Ev + 2 * pu * Eu + eta_t
 
     return [f1_u, f1_v, f2_u, f2_v, f3]
+
 
 EExact_u, EExact_v, pExact_u, pExact_v, etaExact_u = solution(X_star)
 
@@ -166,7 +169,9 @@ def feature_transform(XT):
         [(z - z_lower) / (z_upper - z_lower), (t - t_lower) / (t_upper - t_lower)], 1
     )
 
+
 net.apply_feature_transform(feature_transform)
+
 
 def output_transform(XT, y):
     Eu = y[:, 0:1]
@@ -183,17 +188,14 @@ def output_transform(XT, y):
 
     EExact = 2 * exp(-2 * I / 5 * (5 * T - 2 * X)) / cosh(2 * T + (22 * X) / 5)
     pExact = (
-            -I
-            / 5
-            * exp(-2 * I / 5 * (5 * T - 2 * X))
-            * (
-                    (-2 + I) * exp(-2 * T - (22 * X) / 5)
-                    - (2 + I) * exp(2 * T + (22 * X) / 5)
-            )
-            / cosh(2 * T + (22 * X) / 5) ** 2
+        -I
+        / 5
+        * exp(-2 * I / 5 * (5 * T - 2 * X))
+        * ((-2 + I) * exp(-2 * T - (22 * X) / 5) - (2 + I) * exp(2 * T + (22 * X) / 5))
+        / cosh(2 * T + (22 * X) / 5) ** 2
     )
     etaExact = (5 * cosh(2 * T + (22 * X) / 5) ** 2 - 2) / (
-            5 * cosh(2 * T + (22 * X) / 5) ** 2
+        5 * cosh(2 * T + (22 * X) / 5) ** 2
     )
     Eu_true = torch.real(EExact)
     Ev_true = torch.imag(EExact)

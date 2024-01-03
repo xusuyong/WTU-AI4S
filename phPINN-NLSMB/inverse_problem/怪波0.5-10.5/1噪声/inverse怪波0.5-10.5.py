@@ -62,6 +62,7 @@ true_var_dict = {"alpha_1": 0.5, "alpha_2": -1, "omega_0": 0.5}
 var_list = [alpha_1, alpha_2, omega_0]
 """X = x[:, 0:1]不能变成X = x[:, 0]!!!"""
 
+
 def solution(XT):
     z = XT[:, 0:1]
     t = XT[:, 1:2]
@@ -182,7 +183,9 @@ def feature_transform(XT):
         [(z - z_lower) / (z_upper - z_lower), (t - t_lower) / (t_upper - t_lower)], 1
     )
 
+
 net.apply_feature_transform(feature_transform)
+
 
 def output_transform(XT, y):
     Eu = y[:, 0:1]

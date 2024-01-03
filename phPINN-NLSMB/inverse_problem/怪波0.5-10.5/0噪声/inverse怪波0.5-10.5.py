@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
 from numpy import exp, cos, sin, log, tanh, cosh, real, imag, sinh, sqrt, arctan
-
+from scipy import io
 import re
 import time
 
@@ -169,6 +169,7 @@ def feature_transform(XT):
 
 net.apply_feature_transform(feature_transform)
 
+
 def output_transform(XT, y):
     Eu = y[:, 0:1]
     Ev = y[:, 1:2]
@@ -229,7 +230,7 @@ def output_transform(XT, y):
 
 model = dde.Model(data, net)
 
-iterations = 4000
+iterations = 40
 loss_weights = [1, 1, 1, 1, 1, 100, 100, 100, 100, 100]
 model.compile(
     "adam",
@@ -253,8 +254,7 @@ losshistory, train_state = model.train(
     model_save_path="model/",
     callbacks=[resampler, variable],
 )
-
-if 1:
+if 0:
     dde.optimizers.config.set_LBFGS_options(
         # maxcor=50,
         # ftol=1.0 * np.finfo(float).eps,
@@ -306,6 +306,8 @@ etaExact_h = etah_true.reshape(nt, nx)
 EH_pred = Eh_pred.reshape(nt, nx)
 pH_pred = ph_pred.reshape(nt, nx)
 etaH_pred = etah_pred.reshape(nt, nx)
+pred_var_list = variable.get_value()
+
 # reopen saved data using callbacks in fnamevar
 lines = open(filenamevar, "r").readlines()
 # read output data in fnamevar (this line is a long story...)
@@ -621,10 +623,23 @@ fig17.colorbar(h0, ax=[ax0, ax1, ax2], location="right")
 
 
 dde.saveplot(losshistory, train_state, issave=True, isplot=True, output_dir="model/")
-# scipy.io.savemat('bound-state.mat',
-#                  {'x': x, 't': t, 'elapsed': elapsed, 'X_u_train': X_u_train,
-#                   'U_L2_relative_error': U_L2_relative_error, 'V_L2_relative_error': V_L2_relative_error,
-#                   'phi0_L2_relative_error': phi0_L2_relative_error,
-#                   'UH_pred': UH_pred, 'VH_pred': VH_pred, 'phi0H_pred': phi0H_pred,
-#                   'UExact_h': UExact_h, 'VExact_h': VExact_h, 'phi0Exact_h': phi0Exact_h})
+io.savemat(
+    "反问题怪波0的噪声0.5,-1,0.5.mat",
+    {
+        "x": x,
+        "t": t,
+        "elapsed": elapsed,
+        "X_u_train": X_u_train,
+        "E_L2_relative_error": E_L2_relative_error,
+        "p_L2_relative_error": p_L2_relative_error,
+        "eta_L2_relative_error": eta_L2_relative_error,
+        "EH_pred": EH_pred,
+        "pH_pred": pH_pred,
+        "etaH_pred": etaH_pred,
+        "EExact_h": EExact_h,
+        "pExact_h": pExact_h,
+        "etaExact_h": etaExact_h,
+        "pred_var_list": pred_var_list,
+    },
+)
 plt.show()

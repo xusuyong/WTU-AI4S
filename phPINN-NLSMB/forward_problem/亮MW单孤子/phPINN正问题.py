@@ -185,17 +185,17 @@ observe_y2 = dde.icbc.PointSetBC(X_u_train, pu_train, component=2)
 observe_y3 = dde.icbc.PointSetBC(X_u_train, pv_train, component=3)
 observe_y4 = dde.icbc.PointSetBC(X_u_train, eta_train, component=4)
 # Network architecture
-PFNN = False
+PFNN = True
 net = (
     dde.nn.PFNN(
         [
             2,
-            [16, 16, 16, 16, 16],
-            [16, 16, 16, 16, 16],
-            [16, 16, 16, 16, 16],
-            [16, 16, 16, 16, 16],
-            [16, 16, 16, 16, 16],
-            [16, 16, 16, 16, 16],
+            [16] * 5,
+            [16] * 5,
+            [16] * 5,
+            [16] * 5,
+            [16] * 5,
+            [16] * 5,
             5,
         ],
         "tanh",
