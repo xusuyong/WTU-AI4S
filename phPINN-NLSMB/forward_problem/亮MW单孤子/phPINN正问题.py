@@ -1,4 +1,5 @@
 """Backend supported: tensorflow.compat.v1, tensorflow, pytorch, paddle"""
+
 import os
 
 os.environ["DDEBACKEND"] = "pytorch"
@@ -10,6 +11,7 @@ from numpy import exp, cos, sin, log, tanh, cosh, real, imag, sinh, sqrt, arctan
 from scipy import io
 import matplotlib
 
+dde.config.set_default_float("float64")
 time_string = time.strftime("%Y年%m月%d日%H时%M分%S秒", time.localtime())
 folder_name = f"output_{time_string}"
 os.makedirs(folder_name, exist_ok=True)
@@ -38,10 +40,10 @@ else:
     exp_tensor = tf.math.exp
     cosh_tensor = tf.math.cosh
     concat = tf.concat
-z_lower = -2
-z_upper = 2
-t_lower = -3
-t_upper = 3
+z_lower = -1
+z_upper = 1
+t_lower = 0
+t_upper = 1
 nx = 512
 nt = 512
 # Creation of the 2D domain (for plotting and input)
@@ -55,7 +57,9 @@ X_star = np.hstack((X.flatten()[:, None], T.flatten()[:, None]))
 # Space and time domains/geometry (for the deepxde model)
 space_domain = dde.geometry.Interval(z_lower, z_upper)  # 先定义空间
 time_domain = dde.geometry.TimeDomain(t_lower, t_upper)  # 再定义时间
-geomtime = dde.geometry.GeometryXTime(space_domain, time_domain)  # 结合一下，变成时空区域
+geomtime = dde.geometry.GeometryXTime(
+    space_domain, time_domain
+)  # 结合一下，变成时空区域
 
 
 # The "physics-informed" part of the loss
@@ -76,12 +80,14 @@ def pde(x, y):  # 这里x其实是x和t，y其实是u和v
     Eu_tt = dde.grad.hessian(y, x, component=0, i=1, j=1)
     Ev_tt = dde.grad.hessian(y, x, component=1, i=1, j=1)
 
-    omega = -1
+    alpha_1 = 0.5
+    alpha_2 = -1
+    omega_0 = -1
 
-    f1_u = 0.5 * Eu_tt + Eu * (Eu**2 + Ev**2) + 2 * pv - Ev_z
-    f1_v = 0.5 * Ev_tt + Ev * (Eu**2 + Ev**2) - 2 * pu + Eu_z
-    f2_u = 2 * Ev * eta - pv_t + 2 * pu * omega
-    f2_v = -2 * Eu * eta + pu_t + 2 * pv * omega
+    f1_u = alpha_1 * Eu_tt - alpha_2 * Eu * (Eu**2 + Ev**2) + 2 * pv - Ev_z
+    f1_v = alpha_1 * Ev_tt - alpha_2 * Ev * (Eu**2 + Ev**2) - 2 * pu + Eu_z
+    f2_u = 2 * Ev * eta - pv_t + 2 * pu * omega_0
+    f2_v = -2 * Eu * eta + pu_t + 2 * pv * omega_0
     f3 = 2 * pv * Ev + 2 * pu * Eu + eta_t
 
     return [f1_u, f1_v, f2_u, f2_v, f3]
@@ -144,23 +150,23 @@ def output_transform(XT, y):
     )
     eta_true = (cosh(2 * t + 6 * x) ** 2 - 2) / cosh(2 * t + 6 * x) ** 2
 
-    aaa = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (
+    Eu_true = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (
         1 - exp(t_lower - t)
     ) * Eu + Eu_true
-    bbb = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (
+    Ev_true = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (
         1 - exp(t_lower - t)
     ) * Ev + Ev_true
-    ccc = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (
+    pu_true = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (
         1 - exp(t_lower - t)
     ) * pu + pu_true
-    ddd = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (
+    pv_true = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (
         1 - exp(t_lower - t)
     ) * pv + pv_true
-    eee = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (
+    eta_true = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (
         1 - exp(t_lower - t)
     ) * eta + eta_true
 
-    return concat([aaa, bbb, ccc, ddd, eee], 1)
+    return concat([Eu_true, Ev_true, pu_true, pv_true, eta_true], 1)
 
 
 """forward"""
@@ -185,7 +191,7 @@ observe_y2 = dde.icbc.PointSetBC(X_u_train, pu_train, component=2)
 observe_y3 = dde.icbc.PointSetBC(X_u_train, pv_train, component=3)
 observe_y4 = dde.icbc.PointSetBC(X_u_train, eta_train, component=4)
 # Network architecture
-PFNN = True
+PFNN = False
 net = (
     dde.nn.PFNN(
         [
@@ -273,7 +279,7 @@ if LBFGS:
         maxcor=50,
         ftol=1.0 * np.finfo(float).eps,
         gtol=1e-08,
-        maxiter=100,
+        maxiter=1000,
         maxfun=None,
         maxls=50,
     )
@@ -347,12 +353,12 @@ def plot_compare(H_exact, H_pred, tt0, tt1, name):
     plt.title("t=%s" % tt1)
     plt.legend()
     fig101.tight_layout()
-    plt.savefig(f"{folder_name}/对比图{name}.pdf", dpi="figure")
+    plt.savefig(f"{folder_name}/对比图{name}.png", dpi="figure")
 
 
-plot_compare(EExact_h, EH_pred, -2, 2, "E")
-plot_compare(pExact_h, pH_pred, -2, 2, "p")
-plot_compare(etaExact_h, etaH_pred, -2, 2, "eta")
+plot_compare(EExact_h, EH_pred, 0.1, 0.9, "E")
+plot_compare(pExact_h, pH_pred, 0.1, 0.9, "p")
+plot_compare(etaExact_h, etaH_pred, 0.1, 0.9, "eta")
 
 
 def plot3d(X, Y, Z, name, cmap):
@@ -374,7 +380,7 @@ def plot3d(X, Y, Z, name, cmap):
     ax.set_zlabel("$|E(t,z)|$")
     # fig5.colorbar(surf, shrink=0.5, aspect=5)
     ax.view_init(elevation, azimuth)
-    plt.savefig(f"{folder_name}/3维图{name}.pdf", dpi="figure")
+    plt.savefig(f"{folder_name}/3维图{name}.png", dpi="figure")
 
 
 plot3d(X, T, EH_pred, "EH_pred", cmap="Spectral")
@@ -429,7 +435,7 @@ def plot2d(E, p, eta, name, cmap):
     # plt.subplots_adjust(
     #     left=0.15, right=1 - 0.01, bottom=0.08, top=1 - 0.08, wspace=None, hspace=0.25
     # )
-    plt.savefig(folder_name + f"/投影图{name}.pdf", dpi="figure")
+    plt.savefig(folder_name + f"/投影图{name}.png", dpi="figure")
 
 
 plot2d(EH_pred, pH_pred, etaH_pred, "Prediction", cmap="viridis")
