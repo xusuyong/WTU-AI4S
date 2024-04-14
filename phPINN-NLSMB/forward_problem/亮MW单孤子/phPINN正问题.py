@@ -46,24 +46,18 @@ t_lower = 0
 t_upper = 1
 nx = 512
 nt = 512
-# Creation of the 2D domain (for plotting and input)
 x = np.linspace(z_lower, z_upper, nx)
 t = np.linspace(t_lower, t_upper, nt)
 X, T = np.meshgrid(x, t)
-# The whole domain flattened
 X_star = np.hstack((X.flatten()[:, None], T.flatten()[:, None]))
 
 
-# Space and time domains/geometry (for the deepxde model)
-space_domain = dde.geometry.Interval(z_lower, z_upper)  # 先定义空间
-time_domain = dde.geometry.TimeDomain(t_lower, t_upper)  # 再定义时间
-geomtime = dde.geometry.GeometryXTime(
-    space_domain, time_domain
-)  # 结合一下，变成时空区域
+space_domain = dde.geometry.Interval(z_lower, z_upper)
+time_domain = dde.geometry.TimeDomain(t_lower, t_upper)
+geomtime = dde.geometry.GeometryXTime(space_domain, time_domain)
 
 
-# The "physics-informed" part of the loss
-def pde(x, y):  # 这里x其实是x和t，y其实是u和v
+def pde(x, y):
     Eu = y[:, 0:1]
     Ev = y[:, 1:2]
     pu = y[:, 2:3]
@@ -93,7 +87,6 @@ def pde(x, y):  # 这里x其实是x和t，y其实是u和v
     return [f1_u, f1_v, f2_u, f2_v, f3]
 
 
-# Boundary and Initial conditions
 def solution(XT):
     x = XT[:, 0:1]
     t = XT[:, 1:2]
@@ -190,7 +183,7 @@ observe_y1 = dde.icbc.PointSetBC(X_u_train, Ev_train, component=1)
 observe_y2 = dde.icbc.PointSetBC(X_u_train, pu_train, component=2)
 observe_y3 = dde.icbc.PointSetBC(X_u_train, pv_train, component=3)
 observe_y4 = dde.icbc.PointSetBC(X_u_train, eta_train, component=4)
-# Network architecture
+
 PFNN = False
 net = (
     dde.nn.PFNN(
@@ -368,13 +361,13 @@ def plot3d(X, Y, Z, name, cmap):
         X,
         Y,
         Z,
-        rstride=stride,  # 指定行的跨度
-        cstride=stride,  # 指定列的跨度
-        cmap=cmap,  # 设置颜色映射 还可以设置成YlGnBu_r和viridis
+        rstride=stride,
+        cstride=stride,
+        cmap=cmap,
         linewidth=0,
         antialiased=False,
     )
-    # ax.grid(False)#关闭背景的网格线
+    # ax.grid(False)
     ax.set_xlabel("$z$")
     ax.set_ylabel("$t$")
     ax.set_zlabel("$|E(t,z)|$")
