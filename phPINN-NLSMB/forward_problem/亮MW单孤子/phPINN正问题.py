@@ -410,8 +410,6 @@ def train(cfg: DictConfig):
         },
     )
 
-
-# plt.show()
 @hydra.main(version_base=None, config_path="./conf", config_name="亮MW.yaml")
 def main(cfg: DictConfig):
     if cfg.mode == "train":
