@@ -1,7 +1,7 @@
 """Backend supported: tensorflow.compat.v1, tensorflow, pytorch, paddle"""
 import os
 
-os.environ["DDEBACKEND"] = "pytorch"
+os.environ["DDEBACKEND"] = "paddle"
 os.makedirs("model", exist_ok=True)
 import deepxde as dde
 import matplotlib.pyplot as plt
@@ -230,7 +230,7 @@ def output_transform(XT, y):
 
 model = dde.Model(data, net)
 
-iterations = 40
+iterations = 1000
 loss_weights = [1, 1, 1, 1, 1, 100, 100, 100, 100, 100]
 model.compile(
     "adam",

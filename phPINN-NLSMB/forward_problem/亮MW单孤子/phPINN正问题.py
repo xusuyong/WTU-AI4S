@@ -180,11 +180,11 @@ def train(cfg: DictConfig):
                 [16] * 5,
                 5,
             ],
-            "tanh",
+            f"{cfg.activate}",
             "Glorot normal",
         )
         if PFNN
-        else dde.nn.FNN([2] + [64] * 6 + [5], "tanh", "Glorot normal")
+        else dde.nn.FNN([2] + [64] * 6 + [5], f"{cfg.activate}", "Glorot normal")
     )
     hard_constraint = cfg.hard_constraint
     if hard_constraint:
@@ -239,7 +239,7 @@ def train(cfg: DictConfig):
                 model_save_path=f"{folder_name}/",
                 callbacks=[early_stopping, resampler],
             )
-    LBFGS = cfg.lbfgs
+    LBFGS = cfg.LBFGS
     if LBFGS:
         dde.optimizers.config.set_LBFGS_options(
             maxcor=50,

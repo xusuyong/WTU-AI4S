@@ -28,11 +28,12 @@ NPOINT_BC: 400
 
 adam: 3
 lbfgs: 100
-hard_constraint: True
+hard_constraint: False
 RAR: False
 LBFGS: False
 float: 32
 num_domain: 10000
+activate: tanh
 
 # set geometry
 DIAGONAL_COORD:
