@@ -1,7 +1,7 @@
 """Backend supported: tensorflow.compat.v1, tensorflow, pytorch, paddle"""
 import os
 
-os.environ["DDEBACKEND"] = "paddle"
+os.environ["DDEBACKEND"] = "pytorch"
 os.makedirs("model", exist_ok=True)
 import deepxde as dde
 import matplotlib.pyplot as plt
@@ -622,7 +622,7 @@ fig17.colorbar(h0, ax=[ax0, ax1, ax2], location="right")
 # plt.tight_layout()#自动调整大小和间距，使各个子图标签不重叠
 
 
-dde.saveplot(losshistory, train_state, issave=True, isplot=True, output_dir="model/")
+dde.saveplot(losshistory, train_state, issave=True, isplot=False, output_dir="model/")
 io.savemat(
     "反问题怪波0的噪声0.5,-1,0.5.mat",
     {
@@ -642,4 +642,4 @@ io.savemat(
         "pred_var_list": pred_var_list,
     },
 )
-plt.show()
+# plt.show()
