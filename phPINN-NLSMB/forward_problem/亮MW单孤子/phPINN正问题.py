@@ -40,6 +40,8 @@ else:
     exp_tensor = tf.math.exp
     cosh_tensor = tf.math.cosh
     concat = tf.concat
+
+
 def train(cfg: DictConfig):
     start_time = time.time()
     if cfg.float == 64:
@@ -83,16 +85,27 @@ def train(cfg: DictConfig):
         f2_v = -2 * Eu * eta + pu_t + 2 * pv * omega_0
         f3 = 2 * pv * Ev + 2 * pu * Eu + eta_t
         return [f1_u, f1_v, f2_u, f2_v, f3]
+
     def solution(XT):
         x = XT[:, 0:1]
         t = XT[:, 1:2]
         Eu_true = 2 * cos(2 * t) / cosh(2 * t + 6 * x)
         Ev_true = -2 * sin(2 * t) / cosh(2 * t + 6 * x)
-        pu_true = ((exp(-2 * t - 6 * x) - exp(2 * t + 6 * x)) * cos(2 * t)/ cosh(2 * t + 6 * x) ** 2)
-        pv_true = (-(exp(-2 * t - 6 * x) - exp(2 * t + 6 * x))* sin(2 * t) / cosh(2 * t + 6 * x) ** 2)
+        pu_true = (
+            (exp(-2 * t - 6 * x) - exp(2 * t + 6 * x))
+            * cos(2 * t)
+            / cosh(2 * t + 6 * x) ** 2
+        )
+        pv_true = (
+            -(exp(-2 * t - 6 * x) - exp(2 * t + 6 * x))
+            * sin(2 * t)
+            / cosh(2 * t + 6 * x) ** 2
+        )
         eta_true = (cosh(2 * t + 6 * x) ** 2 - 2) / cosh(2 * t + 6 * x) ** 2
         return Eu_true, Ev_true, pu_true, pv_true, eta_true
+
     Eu_true, Ev_true, pu_true, pv_true, eta_true = solution(X_star)
+
     def output_transform(XT, y):
         Eu = y[:, 0:1]
         Ev = y[:, 1:2]
@@ -108,15 +121,34 @@ def train(cfg: DictConfig):
         exp = exp_tensor
         Eu_true = 2 * cos(2 * t) / cosh(2 * t + 6 * x)
         Ev_true = -2 * sin(2 * t) / cosh(2 * t + 6 * x)
-        pu_true = ((exp(-2 * t - 6 * x) - exp(2 * t + 6 * x))* cos(2 * t)/ cosh(2 * t + 6 * x) ** 2)
-        pv_true = ( -(exp(-2 * t - 6 * x) - exp(2 * t + 6 * x))* sin(2 * t) / cosh(2 * t + 6 * x) ** 2)
+        pu_true = (
+            (exp(-2 * t - 6 * x) - exp(2 * t + 6 * x))
+            * cos(2 * t)
+            / cosh(2 * t + 6 * x) ** 2
+        )
+        pv_true = (
+            -(exp(-2 * t - 6 * x) - exp(2 * t + 6 * x))
+            * sin(2 * t)
+            / cosh(2 * t + 6 * x) ** 2
+        )
         eta_true = (cosh(2 * t + 6 * x) ** 2 - 2) / cosh(2 * t + 6 * x) ** 2
-        Eu_true = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * ( 1 - exp(t_lower - t)) * Eu + Eu_true
-        Ev_true = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (1 - exp(t_lower - t)) * Ev + Ev_true
-        pu_true = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (1 - exp(t_lower - t)) * pu + pu_true
-        pv_true = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (1 - exp(t_lower - t)) * pv + pv_true
-        eta_true = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (1 - exp(t_lower - t)) * eta + eta_true
+        Eu_true = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (
+            1 - exp(t_lower - t)
+        ) * Eu + Eu_true
+        Ev_true = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (
+            1 - exp(t_lower - t)
+        ) * Ev + Ev_true
+        pu_true = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (
+            1 - exp(t_lower - t)
+        ) * pu + pu_true
+        pv_true = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (
+            1 - exp(t_lower - t)
+        ) * pv + pv_true
+        eta_true = (1 - exp(x - z_upper)) * (1 - exp(z_lower - x)) * (
+            1 - exp(t_lower - t)
+        ) * eta + eta_true
         return concat([Eu_true, Ev_true, pu_true, pv_true, eta_true], 1)
+
     """forward"""
     ic = X_star[:, 1] == t_lower
     idx_ic = np.random.choice(np.where(ic)[0], 200, replace=False)
@@ -147,7 +179,7 @@ def train(cfg: DictConfig):
                 [16] * 5,
                 [16] * 5,
                 5,
-                ],
+            ],
             "tanh",
             "Glorot normal",
         )
@@ -219,7 +251,7 @@ def train(cfg: DictConfig):
         )
         model.compile(
             "L-BFGS",
-             metrics=["l2 relative error"],
+            metrics=["l2 relative error"],
             loss_weights=loss_weights,
         )
         losshistory, train_state = model.train(
@@ -255,7 +287,10 @@ def train(cfg: DictConfig):
     elevation = 20
     azimuth = -40
     dpi = 300
-    dde.saveplot(losshistory, train_state, issave=True, isplot=False, output_dir=folder_name)
+    dde.saveplot(
+        losshistory, train_state, issave=True, isplot=False, output_dir=folder_name
+    )
+
     def plot_compare(H_exact, H_pred, tt0, tt1, name):
         fig101 = plt.figure(dpi=dpi)
         ax = plt.subplot(2, 1, 1)
@@ -276,9 +311,11 @@ def train(cfg: DictConfig):
         plt.legend()
         fig101.tight_layout()
         plt.savefig(folder_name + f"/3维图{name}.png", dpi="figure")
+
     plot_compare(EExact_h, EH_pred, 0.1, 0.9, "E")
     plot_compare(pExact_h, pH_pred, 0.1, 0.9, "p")
     plot_compare(etaExact_h, etaH_pred, 0.1, 0.9, "eta")
+
     def plot3d(X, Y, Z, name, cmap):
         fig5 = plt.figure(dpi=dpi, facecolor=None, edgecolor=None, layout="tight")
         ax = fig5.add_subplot(projection="3d")
@@ -297,12 +334,13 @@ def train(cfg: DictConfig):
         ax.set_zlabel("$|E(t,z)|$")
         ax.view_init(elevation, azimuth)
         plt.savefig(folder_name + f"/3维图{name}.png", dpi="figure")
-        #plot3d(X, T, EH_pred, "EH_pred", cmap="Spectral")
-        #plot3d(X, T, pH_pred, "pH_pred", cmap="Spectral")
-        #plot3d(X, T, etaH_pred, "etaH_pred", cmap="Spectral")
-        #plot3d(X, T, EExact_h, "EExact_h", cmap="coolwarm")
-        #plot3d(X, T, pExact_h, "pExact_h", cmap="coolwarm")
-        #plot3d(X, T, etaExact_h, "etaExact_h", cmap="coolwarm")
+        # plot3d(X, T, EH_pred, "EH_pred", cmap="Spectral")
+        # plot3d(X, T, pH_pred, "pH_pred", cmap="Spectral")
+        # plot3d(X, T, etaH_pred, "etaH_pred", cmap="Spectral")
+        # plot3d(X, T, EExact_h, "EExact_h", cmap="coolwarm")
+        # plot3d(X, T, pExact_h, "pExact_h", cmap="coolwarm")
+        # plot3d(X, T, etaExact_h, "etaExact_h", cmap="coolwarm")
+
     def plot2d(E, p, eta, name, cmap):
         norm = matplotlib.colors.Normalize(
             vmin=np.min([E, p, eta]),
@@ -343,6 +381,7 @@ def train(cfg: DictConfig):
         )
         fig15.colorbar(h, ax=ax)
         plt.savefig(folder_name + f"/3维图{name}.png", dpi="figure")
+
     plot2d(EH_pred, pH_pred, etaH_pred, "Prediction", cmap="viridis")
     plot2d(EExact_h, pExact_h, etaExact_h, "Exact", cmap="viridis")
     plot2d(
@@ -370,6 +409,7 @@ def train(cfg: DictConfig):
             "etaExact_h": etaExact_h,
         },
     )
+
 
 # plt.show()
 @hydra.main(version_base=None, config_path="./conf", config_name="亮MW.yaml")
