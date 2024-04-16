@@ -459,4 +459,4 @@ io.savemat(
         "etaExact_h": etaExact_h,
     },
 )
-# plt.show()
+plt.show()
