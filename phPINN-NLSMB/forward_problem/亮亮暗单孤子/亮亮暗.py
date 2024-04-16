@@ -152,21 +152,21 @@ def train(cfg: DictConfig):
         pExact_u = real(pExact)
         pExact_v = imag(pExact)
 
-        # EExact_u = (1 - exp(X - z_upper)) * (1 - exp(z_lower - X)) * (
-        #     1 - exp(t_lower - T)
-        # ) * Eu + EExact_u
-        # EExact_v = (1 - exp(X - z_upper)) * (1 - exp(z_lower - X)) * (
-        #     1 - exp(t_lower - T)
-        # ) * Ev + EExact_v
-        # pExact_u = (1 - exp(X - z_upper)) * (1 - exp(z_lower - X)) * (
-        #     1 - exp(t_lower - T)
-        # ) * pu + pExact_u
-        # pExact_v = (1 - exp(X - z_upper)) * (1 - exp(z_lower - X)) * (
-        #     1 - exp(t_lower - T)
-        # ) * pv + pExact_v
-        # etaExact = (1 - exp(X - z_upper)) * (1 - exp(z_lower - X)) * (
-        #     1 - exp(t_lower - T)
-        # ) * eta + etaExact
+        EExact_u = (1 - exp(X - z_upper)) * (1 - exp(z_lower - X)) * (
+            1 - exp(t_lower - T)
+        ) * Eu + EExact_u
+        EExact_v = (1 - exp(X - z_upper)) * (1 - exp(z_lower - X)) * (
+            1 - exp(t_lower - T)
+        ) * Ev + EExact_v
+        pExact_u = (1 - exp(X - z_upper)) * (1 - exp(z_lower - X)) * (
+            1 - exp(t_lower - T)
+        ) * pu + pExact_u
+        pExact_v = (1 - exp(X - z_upper)) * (1 - exp(z_lower - X)) * (
+            1 - exp(t_lower - T)
+        ) * pv + pExact_v
+        etaExact = (1 - exp(X - z_upper)) * (1 - exp(z_lower - X)) * (
+            1 - exp(t_lower - T)
+        ) * eta + etaExact
 
         return concat([EExact_u, EExact_v, pExact_u, pExact_v, etaExact], 1)
 
