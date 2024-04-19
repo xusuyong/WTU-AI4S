@@ -3,7 +3,7 @@
 import os
 import time
 
-os.environ["DDEBACKEND"] = "paddle"
+os.environ["DDEBACKEND"] = "pytorch"
 import deepxde as dde
 import matplotlib.pyplot as plt
 import numpy as np
@@ -42,7 +42,8 @@ else:
     concat = tf.concat
 
 
-def train(cfg: DictConfig):
+@hydra.main(version_base=None, config_path="./conf", config_name="亮MW.yaml")
+def main(cfg: DictConfig):
     start_time = time.time()
     if cfg.float == 64:
         dde.config.set_default_float("float64")
@@ -410,14 +411,15 @@ def train(cfg: DictConfig):
         },
     )
 
-@hydra.main(version_base=None, config_path="./conf", config_name="亮MW.yaml")
-def main(cfg: DictConfig):
-    if cfg.mode == "train":
-        train(cfg)
-    elif cfg.mode == "eval":
-        evaluate(cfg)
-    else:
-        raise ValueError(f"cfg.mode should in ['train', 'eval'], but got '{cfg.mode}'")
+
+# @hydra.main(version_base=None, config_path="./conf", config_name="亮MW.yaml")
+# def main(cfg: DictConfig):
+#     if cfg.mode == "train":
+#         train(cfg)
+#     elif cfg.mode == "eval":
+#         evaluate(cfg)
+#     else:
+#         raise ValueError(f"cfg.mode should in ['train', 'eval'], but got '{cfg.mode}'")
 
 
 if __name__ == "__main__":

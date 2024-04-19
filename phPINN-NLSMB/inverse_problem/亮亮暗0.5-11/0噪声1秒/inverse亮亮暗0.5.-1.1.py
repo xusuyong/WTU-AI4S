@@ -1,4 +1,5 @@
 """Backend supported: tensorflow.compat.v1, tensorflow, pytorch, paddle"""
+
 import os
 
 os.environ["DDEBACKEND"] = "pytorch"
@@ -64,7 +65,6 @@ omega_0 = dde.Variable(0.0)
 
 true_var_dict = {"alpha_1": 0.5, "alpha_2": -1, "omega_0": 0.5}
 var_list = [alpha_1, alpha_2, omega_0]
-"""X = x[:, 0:1]不能变成X = x[:, 0]!!!"""
 
 
 def solution(XT):
@@ -87,18 +87,7 @@ def solution(XT):
     return real(EExact), imag(EExact), real(pExact), imag(pExact), etaExact
 
 
-def pde(x, y):  # 这里x其实是x和t，y其实是u和v
-    """
-    INPUTS:
-        x: x[:,0] is z-coordinate
-           x[:,1] is t-coordinate
-        y: Network output, in this case:
-            y[:,0] is u(x,t) the real part
-            y[:,1] is v(x,t) the imaginary part
-    OUTPUT:
-        The pde in standard form i.e. something that must be zero
-    """
-
+def pde(x, y):
     Eu = y[:, 0:1]
     Ev = y[:, 1:2]
     pu = y[:, 2:3]
@@ -106,11 +95,11 @@ def pde(x, y):  # 这里x其实是x和t，y其实是u和v
     eta = y[:, 4:5]
 
     # In 'jacobian', i is the output component and j is the input component
-    pu_t = dde.grad.jacobian(y, x, i=2, j=1)  # 一阶导用jacobian，二阶导用hessian
+    pu_t = dde.grad.jacobian(y, x, i=2, j=1)
     pv_t = dde.grad.jacobian(y, x, i=3, j=1)
     eta_t = dde.grad.jacobian(y, x, i=4, j=1)
 
-    Eu_z = dde.grad.jacobian(y, x, i=0, j=0)  # 一阶导用jacobian，二阶导用hessian
+    Eu_z = dde.grad.jacobian(y, x, i=0, j=0)
     Ev_z = dde.grad.jacobian(y, x, i=1, j=0)
 
     # In 'hessian', i and j are both input components. (The Hessian could be in principle something like d^2y/dxdt, d^2y/d^2x etc)
@@ -129,9 +118,9 @@ def pde(x, y):  # 这里x其实是x和t，y其实是u和v
 
 EExact_u, EExact_v, pExact_u, pExact_v, etaExact_u = solution(X_star)
 
-space_domain = dde.geometry.Interval(z_lower, z_upper)  # 先定义空间
-time_domain = dde.geometry.TimeDomain(t_lower, t_upper)  # 再定义时间
-geomtime = dde.geometry.GeometryXTime(space_domain, time_domain)  # 结合一下，变成时空区域
+space_domain = dde.geometry.Interval(z_lower, z_upper)
+time_domain = dde.geometry.TimeDomain(t_lower, t_upper)
+geomtime = dde.geometry.GeometryXTime(space_domain, time_domain)
 
 """inverse"""
 idx = np.random.choice(X_star.shape[0], 5000, replace=False)
@@ -228,7 +217,10 @@ model.compile(
 )
 filenamevar = "variables1.dat"
 variable = dde.callbacks.VariableValue(
-    var_list, period=period, filename=filenamevar, precision=7  # 加了filename就不会打印了
+    var_list,
+    period=period,
+    filename=filenamevar,
+    precision=7,  # 加了filename就不会打印了
 )
 """Resample"""
 resampler = dde.callbacks.PDEPointResampler(
@@ -465,7 +457,6 @@ ax2.legend(
 # plt.tight_layout()#自动调整大小和间距，使各个子图标签不重叠
 
 fig16 = plt.figure("平面实际演化图", dpi=dpi, constrained_layout=True)
-# norm0 = matplotlib.colors.Normalize(vmin=np.min([EExact_h,pExact_h,etaExact_h,EH_pred,pH_pred,etaH_pred]),vmax=np.max([EExact_h,pExact_h,etaExact_h,EH_pred,pH_pred,etaH_pred]))
 plt.suptitle("Exact Dynamics")
 ax0 = plt.subplot(3, 1, 1)
 ax0.set_ylabel("$|E(t,z)|$")

@@ -1,4 +1,5 @@
 """Backend supported: tensorflow.compat.v1, tensorflow, pytorch, paddle"""
+
 import os
 
 os.environ["DDEBACKEND"] = "pytorch"
@@ -128,7 +129,9 @@ EExact_u, EExact_v, pExact_u, pExact_v, etaExact_u = solution(X_star)
 
 space_domain = dde.geometry.Interval(z_lower, z_upper)  # 先定义空间
 time_domain = dde.geometry.TimeDomain(t_lower, t_upper)  # 再定义时间
-geomtime = dde.geometry.GeometryXTime(space_domain, time_domain)  # 结合一下，变成时空区域
+geomtime = dde.geometry.GeometryXTime(
+    space_domain, time_domain
+)  # 结合一下，变成时空区域
 
 """inverse"""
 idx = np.random.choice(X_star.shape[0], 5000, replace=False)
@@ -242,7 +245,10 @@ model.compile(
 )
 filenamevar = "variables1.dat"
 variable = dde.callbacks.VariableValue(
-    var_list, period=period, filename=filenamevar, precision=7  # 加了filename就不会打印了
+    var_list,
+    period=period,
+    filename=filenamevar,
+    precision=7,  # 加了filename就不会打印了
 )
 """Resample"""
 resampler = dde.callbacks.PDEPointResampler(

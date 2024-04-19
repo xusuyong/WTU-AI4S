@@ -49,12 +49,12 @@ def train(cfg: DictConfig):
         dde.config.set_default_float("float64")
     folder_name = cfg.output_dir
     I = 1j
-    z_lower = -2
-    z_upper = 2
-    t_lower = -3
-    t_upper = 3
-    nx = 512
-    nt = 512
+    z_lower = cfg.z_lower
+    z_upper = cfg.z_upper
+    t_lower = cfg.t_lower
+    t_upper = cfg.t_upper
+    nx = cfg.nx
+    nt = cfg.nt
     x = np.linspace(z_lower, z_upper, nx)[:, None]
     t = np.linspace(t_lower, t_upper, nt)[:, None]
     X, T = np.meshgrid(x, t)
@@ -172,11 +172,11 @@ def train(cfg: DictConfig):
 
     """forward"""
     ic = X_star[:, 1] == t_lower
-    idx_ic = np.random.choice(np.where(ic)[0], 200, replace=False)
+    idx_ic = np.random.choice(np.where(ic)[0], cfg.NPOINT_IC, replace=False)
     lb = X_star[:, 0] == z_lower
-    idx_lb = np.random.choice(np.where(lb)[0], 200, replace=False)
+    idx_lb = np.random.choice(np.where(lb)[0], cfg.NPOINT_BC, replace=False)
     ub = X_star[:, 0] == z_upper
-    idx_ub = np.random.choice(np.where(ub)[0], 200, replace=False)
+    idx_ub = np.random.choice(np.where(ub)[0], cfg.NPOINT_BC, replace=False)
     icbc_idx = np.hstack((idx_lb, idx_ic, idx_ub))
     X_u_train = X_star[icbc_idx]
 
@@ -193,24 +193,28 @@ def train(cfg: DictConfig):
     observe_y4 = dde.icbc.PointSetBC(X_u_train, eta_train, component=4)
 
     # Network architecture
-    PFNN = True
+    PFNN = cfg.PFNN
     net = (
         dde.nn.PFNN(
             [
                 2,
-                [16, 16, 16, 16, 16],
-                [16, 16, 16, 16, 16],
-                [16, 16, 16, 16, 16],
-                [16, 16, 16, 16, 16],
-                [16, 16, 16, 16, 16],
-                [16, 16, 16, 16, 16],
+                [16] * 5,
+                [16] * 5,
+                [16] * 5,
+                [16] * 5,
+                [16] * 5,
+                [16] * 5,
                 5,
             ],
-            "tanh",
+            cfg.activate,
             "Glorot normal",
         )
         if PFNN
-        else dde.nn.FNN([2] + [64] * 6 + [5], "tanh", "Glorot normal")
+        else dde.nn.FNN(
+            [2] + [cfg.hidden_size] * cfg.num_layers + [5],
+            cfg.activate,
+            "Glorot normal",
+        )
     )
 
     hard_constraint = cfg.hard_constraint
@@ -226,7 +230,7 @@ def train(cfg: DictConfig):
         geomtime,
         pde,
         ic_bcs,
-        num_domain=20000,
+        num_domain=cfg.num_domain,
         solution=lambda XT: np.hstack((solution(XT))),
     )
 
@@ -237,10 +241,10 @@ def train(cfg: DictConfig):
     iterations = cfg.adam
     model.compile(
         "adam",
-        lr=0.001,
+        lr=cfg.lr,
         loss="MSE",
         metrics=["l2 relative error"],
-        decay=("inverse time", iterations // 1, 0.5),
+        decay=("inverse time", iterations // 3, 0.5),
         loss_weights=loss_weights,
     )
     losshistory, train_state = model.train(
@@ -356,6 +360,7 @@ def train(cfg: DictConfig):
         plt.legend()
         fig101.tight_layout()
         plt.savefig(folder_name + f"/对比图{name}.png", dpi="figure")
+        plt.close()
 
     plot_compare(EExact_h, EH_pred, -2, 2, "E")
     plot_compare(pExact_h, pH_pred, -2, 2, "p")
@@ -381,6 +386,7 @@ def train(cfg: DictConfig):
         # fig5.colorbar(surf, shrink=0.5, aspect=5)
         ax.view_init(elevation, azimuth)
         plt.savefig(folder_name + f"/3维图{name}.png", dpi="figure")
+        plt.close()
 
     # plot3d(X, T, EH_pred, "EH_pred", cmap="Spectral")
     # plot3d(X, T, pH_pred, "pH_pred", cmap="Spectral")
@@ -434,6 +440,7 @@ def train(cfg: DictConfig):
         #     left=0.15, right=1 - 0.01, bottom=0.08, top=1 - 0.08, wspace=None, hspace=0.25
         # )
         plt.savefig(folder_name + f"/投影图{name}.png", dpi="figure")
+        plt.close()
 
     plot2d(EH_pred, pH_pred, etaH_pred, "Prediction", cmap="viridis")
     plot2d(EExact_h, pExact_h, etaExact_h, "Exact", cmap="viridis")

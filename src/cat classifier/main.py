@@ -76,7 +76,9 @@ def model(X_train, Y_train, learning_rate, num_iterations, print_cost=False):
     parameters = initialize_parameters(dim=12288)  # 初始化w和b
     costs = []
     for i in range(num_iterations):
-        A, cache = forward_propagation(X_train, parameters)  # 传进去的是初始化的parameters，一个字典
+        A, cache = forward_propagation(
+            X_train, parameters
+        )  # 传进去的是初始化的parameters，一个字典
         cost = compute_cost(A, Y_train)
         grads = backward_propagation(cache, X_train, Y_train)
         parameters = update_parameters(parameters, grads, learning_rate)
@@ -106,10 +108,14 @@ predictions_test = predict(d["parameters"], test_set_x)  # 测试集
 # 打印训练后的准确性
 # print(type(train_set_y),predictions_train)
 print(
-    "训练集准确性：", format(100 - np.mean(np.abs(predictions_train - train_set_y)) * 100), "%"
+    "训练集准确性：",
+    format(100 - np.mean(np.abs(predictions_train - train_set_y)) * 100),
+    "%",
 )
 print(
-    "测试集准确性：", format(100 - np.mean(np.abs(predictions_test - test_set_y)) * 100), "%"
+    "测试集准确性：",
+    format(100 - np.mean(np.abs(predictions_test - test_set_y)) * 100),
+    "%",
 )
 
 # 绘制图

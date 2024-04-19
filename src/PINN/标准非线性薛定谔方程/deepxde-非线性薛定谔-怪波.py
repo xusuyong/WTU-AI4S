@@ -1,4 +1,5 @@
 """Backend supported: tensorflow.compat.v1, tensorflow, pytorch, paddle"""
+
 import os
 
 os.environ["DDEBACKEND"] = "pytorch"
@@ -24,9 +25,9 @@ X, T = np.meshgrid(x, t)
 X_star = np.hstack((X.flatten()[:, None], T.flatten()[:, None]))
 
 # Space and time domains/geometry (for the deepxde model)
-space_domain = dde.geometry.Interval(x_lower, x_upper)  # 先定义空间
-time_domain = dde.geometry.TimeDomain(t_lower, t_upper)  # 再定义时间
-geomtime = dde.geometry.GeometryXTime(space_domain, time_domain)  # 结合一下，变成时空区域
+space_domain = dde.geometry.Interval(x_lower, x_upper)
+time_domain = dde.geometry.TimeDomain(t_lower, t_upper)
+geomtime = dde.geometry.GeometryXTime(space_domain, time_domain)
 
 
 # The "physics-informed" part of the loss

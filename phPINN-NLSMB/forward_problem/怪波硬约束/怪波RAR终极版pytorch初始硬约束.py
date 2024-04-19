@@ -133,7 +133,9 @@ X_star = np.hstack((X.flatten()[:, None], T.flatten()[:, None]))
 # Space and time domains/geometry (for the deepxde model)
 space_domain = dde.geometry.Interval(z_lower, z_upper)  # 先定义空间
 time_domain = dde.geometry.TimeDomain(t_lower, t_upper)  # 再定义时间
-geomtime = dde.geometry.GeometryXTime(space_domain, time_domain)  # 结合一下，变成时空区域
+geomtime = dde.geometry.GeometryXTime(
+    space_domain, time_domain
+)  # 结合一下，变成时空区域
 
 
 def pde(x, y):  # 这里x其实是x和t，y其实是u和v
@@ -225,9 +227,7 @@ def output_transform(x, y):
         )
         * torch.exp(((3 * X) / 2 - (65 * T1) / 8) * I)
     ) / (
-        4 * ((19 * T1) / 128 - (17 * X) / 64) ** 2
-        + (6561 * T1**2) / 1024
-        + 289 / 4096
+        4 * ((19 * T1) / 128 - (17 * X) / 64) ** 2 + (6561 * T1**2) / 1024 + 289 / 4096
     ) ** 2
     eta_true = (
         4624 * X**4

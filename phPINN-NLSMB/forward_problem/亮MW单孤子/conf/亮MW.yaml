@@ -1,7 +1,7 @@
 hydra:
   run:
     # dynamic output directory according to running time and override name
-    dir: output_亮MW/${now:%Y-%m-%d}/${now:%H-%M-%S}/${hydra.job.override_dirname}
+    dir: output_亮亮暗/${now:%Y-%m-%d}/${now:%H-%M-%S}/${hydra.job.override_dirname}
   job:
     name: ${mode} # name of logfile
     chdir: false # keep current working directory unchanged
@@ -23,8 +23,22 @@ hydra:
 mode: train # running mode: train/eval
 seed: 42
 output_dir: ${hydra:run.dir}
-NPOINT_INTERIOR: 9801
-NPOINT_BC: 400
+
+
+# set geometry
+z_lower: -2
+z_upper: 2
+t_lower: -3
+t_upper: 3
+nx: 256
+nt: 256
+
+PFNN: False
+
+hidden_size: 64
+num_layers: 6
+activate: tanh
+
 
 adam: 3
 lbfgs: 100
@@ -32,28 +46,12 @@ hard_constraint: False
 RAR: False
 LBFGS: False
 float: 32
-num_domain: 10000
-activate: tanh
+lr: 0.001
 
-# set geometry
-DIAGONAL_COORD:
-  xmin: [0.0, 0.0]
-  xmax: [1.0, 1.0]
+num_domain: 20000
+NPOINT_IC: 200
+NPOINT_BC: 200
 
-# model settings
-MODEL:
-  input_keys: ["x", "y"]
-  output_keys: ["u"]
-  num_layers: 5
-  hidden_size: 20
-
-# training settings
-TRAIN:
-  epochs: 20000
-  iters_per_epoch: 1
-  eval_during_train: true
-  eval_freq: 200
-  learning_rate: 0.001
 
 # evaluation settings
 EVAL:

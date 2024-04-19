@@ -1,4 +1,5 @@
 """Backend supported: tensorflow.compat.v1, tensorflow, pytorch, paddle"""
+
 import os
 import time
 
@@ -57,7 +58,9 @@ X_star = np.hstack((X.flatten()[:, None], T.flatten()[:, None]))
 # Space and time domains/geometry (for the deepxde model)
 space_domain = dde.geometry.Interval(z_lower, z_upper)  # 先定义空间
 time_domain = dde.geometry.TimeDomain(t_lower, t_upper)  # 再定义时间
-geomtime = dde.geometry.GeometryXTime(space_domain, time_domain)  # 结合一下，变成时空区域
+geomtime = dde.geometry.GeometryXTime(
+    space_domain, time_domain
+)  # 结合一下，变成时空区域
 I = 1j
 EExact = (
     -(12 + 16 * I) * np.exp((3 - I / 2) * T + 3 - (1513 / 377 + 73 * I / 116) * X)

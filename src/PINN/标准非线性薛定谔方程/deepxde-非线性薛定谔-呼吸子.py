@@ -1,4 +1,5 @@
 """Backend supported: tensorflow.compat.v1, tensorflow, pytorch, paddle"""
+
 import os
 
 os.environ["DDEBACKEND"] = "pytorch"
@@ -15,38 +16,22 @@ t_lower = 0
 t_upper = np.pi / 2
 nx = 256
 nt = 201
-# Creation of the 2D domain (for plotting and input)
 x = np.linspace(x_lower, x_upper, nx)
 t = np.linspace(t_lower, t_upper, nt)
 X, T = np.meshgrid(x, t)
 
-# The whole domain flattened
 X_star = np.hstack((X.flatten()[:, None], T.flatten()[:, None]))
 
-# Space and time domains/geometry (for the deepxde model)
-space_domain = dde.geometry.Interval(x_lower, x_upper)  # 先定义空间
-time_domain = dde.geometry.TimeDomain(t_lower, t_upper)  # 再定义时间
-geomtime = dde.geometry.GeometryXTime(space_domain, time_domain)  # 结合一下，变成时空区域
+space_domain = dde.geometry.Interval(x_lower, x_upper)
+time_domain = dde.geometry.TimeDomain(t_lower, t_upper)
+geomtime = dde.geometry.GeometryXTime(space_domain, time_domain)
 
 
-# The "physics-informed" part of the loss
-def pde(x, y):  # 这里x其实是x和t，y其实是u和v
-    """
-    INPUTS:
-        x: x[:,0] is x-coordinate
-           x[:,1] is t-coordinate
-        y: Network output, in this case:
-            y[:,0] is u(x,t) the real part
-            y[:,1] is v(x,t) the imaginary part
-    OUTPUT:
-        The pde in standard form i.e. something that must be zero
-    """
-
+def pde(x, y):
     u = y[:, 0:1]
     v = y[:, 1:2]
 
-    # In 'jacobian', i is the output component and j is the input component
-    u_t = dde.grad.jacobian(u, x, i=0, j=1)  # 一阶导用jacobian，二阶导用hessian
+    u_t = dde.grad.jacobian(u, x, i=0, j=1)
     v_t = dde.grad.jacobian(v, x, i=0, j=1)
 
     u_x = dde.grad.jacobian(u, x, i=0, j=0)
@@ -62,7 +47,6 @@ def pde(x, y):  # 这里x其实是x和t，y其实是u和v
 
 
 # Boundary and Initial conditions
-
 # Periodic Boundary conditions
 bc_u_0 = dde.icbc.PeriodicBC(
     geomtime, 0, lambda _, on_boundary: on_boundary, derivative_order=0, component=0
@@ -174,13 +158,13 @@ surf = ax.plot_surface(
     X,
     T,
     h,
-    rstride=3,  # 指定行的跨度
-    cstride=3,  # 指定列的跨度
-    cmap="coolwarm",  # 设置颜色映射（这里是绿化的意思）
+    rstride=3,
+    cstride=3,
+    cmap="coolwarm",
     linewidth=0,
     antialiased=False,
-)  # 抗锯齿
-# ax.grid(False)#关闭背景的网格线
+)
+# ax.grid(False)
 ax.set_xlabel("$x$")
 ax.set_ylabel("$t$")
 ax.set_zlabel("$|h(x,t)|$")
