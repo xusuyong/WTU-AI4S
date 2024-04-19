@@ -62,11 +62,9 @@ X, T = np.meshgrid(x, t)
 X_star = np.hstack((X.flatten()[:, None], T.flatten()[:, None]))
 
 # Space and time domains/geometry (for the deepxde model)
-space_domain = dde.geometry.Interval(z_lower, z_upper)  # 先定义空间
-time_domain = dde.geometry.TimeDomain(t_lower, t_upper)  # 再定义时间
-geomtime = dde.geometry.GeometryXTime(
-    space_domain, time_domain
-)  # 结合一下，变成时空区域
+space_domain = dde.geometry.Interval(z_lower, z_upper)
+time_domain = dde.geometry.TimeDomain(t_lower, t_upper)
+geomtime = dde.geometry.GeometryXTime(space_domain, time_domain)
 
 I = 1j
 EExact = exp(((3 * X) / 2 - (65 * T) / 8) * I) * (

@@ -8,7 +8,7 @@ import deepxde as dde
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy import exp, cos, sin, log, tanh, cosh, real, imag, sinh, sqrt, arctan
-from scipy import io
+from scipy import io as sio
 import matplotlib
 from os import path as osp
 
@@ -43,7 +43,8 @@ else:
     concat = tf.concat
 
 
-def train(cfg: DictConfig):
+@hydra.main(version_base=None, config_path="./conf", config_name="亮亮暗.yaml")
+def main(cfg: DictConfig):
     start_time = time.time()
     if cfg.float == 64:
         dde.config.set_default_float("float64")
@@ -388,12 +389,12 @@ def train(cfg: DictConfig):
         plt.savefig(folder_name + f"/3维图{name}.png", dpi="figure")
         plt.close()
 
-    # plot3d(X, T, EH_pred, "EH_pred", cmap="Spectral")
-    # plot3d(X, T, pH_pred, "pH_pred", cmap="Spectral")
-    # plot3d(X, T, etaH_pred, "etaH_pred", cmap="Spectral")
-    # plot3d(X, T, EExact_h, "EExact_h", cmap="coolwarm")
-    # plot3d(X, T, pExact_h, "pExact_h", cmap="coolwarm")
-    # plot3d(X, T, etaExact_h, "etaExact_h", cmap="coolwarm")
+    plot3d(X, T, EH_pred, "EH_pred", cmap="Spectral")
+    plot3d(X, T, pH_pred, "pH_pred", cmap="Spectral")
+    plot3d(X, T, etaH_pred, "etaH_pred", cmap="Spectral")
+    plot3d(X, T, EExact_h, "EExact_h", cmap="coolwarm")
+    plot3d(X, T, pExact_h, "pExact_h", cmap="coolwarm")
+    plot3d(X, T, etaExact_h, "etaExact_h", cmap="coolwarm")
 
     def plot2d(E, p, eta, name, cmap):
         norm = matplotlib.colors.Normalize(
@@ -452,7 +453,7 @@ def train(cfg: DictConfig):
         cmap="viridis",
     )
 
-    io.savemat(
+    sio.savemat(
         folder_name + f"/预测结果_{os.path.basename(os.getcwd())}.mat",
         {
             "x": x,
@@ -471,16 +472,6 @@ def train(cfg: DictConfig):
         },
     )
     # plt.show()
-
-
-@hydra.main(version_base=None, config_path="./conf", config_name="亮亮暗.yaml")
-def main(cfg: DictConfig):
-    if cfg.mode == "train":
-        train(cfg)
-    elif cfg.mode == "eval":
-        evaluate(cfg)
-    else:
-        raise ValueError(f"cfg.mode should in ['train', 'eval'], but got '{cfg.mode}'")
 
 
 if __name__ == "__main__":

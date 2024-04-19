@@ -3,12 +3,12 @@
 import os
 import time
 
-os.environ["DDEBACKEND"] = "pytorch"
+os.environ["DDEBACKEND"] = "paddle"
 import deepxde as dde
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy import exp, cos, sin, log, tanh, cosh, real, imag, sinh, sqrt, arctan
-from scipy import io
+from scipy import io as sio
 import matplotlib
 from os import path as osp
 
@@ -312,6 +312,7 @@ def main(cfg: DictConfig):
         plt.legend()
         fig101.tight_layout()
         plt.savefig(folder_name + f"/3维图{name}.png", dpi="figure")
+        plt.close()
 
     plot_compare(EExact_h, EH_pred, 0.1, 0.9, "E")
     plot_compare(pExact_h, pH_pred, 0.1, 0.9, "p")
@@ -335,12 +336,14 @@ def main(cfg: DictConfig):
         ax.set_zlabel("$|E(t,z)|$")
         ax.view_init(elevation, azimuth)
         plt.savefig(folder_name + f"/3维图{name}.png", dpi="figure")
-        # plot3d(X, T, EH_pred, "EH_pred", cmap="Spectral")
-        # plot3d(X, T, pH_pred, "pH_pred", cmap="Spectral")
-        # plot3d(X, T, etaH_pred, "etaH_pred", cmap="Spectral")
-        # plot3d(X, T, EExact_h, "EExact_h", cmap="coolwarm")
-        # plot3d(X, T, pExact_h, "pExact_h", cmap="coolwarm")
-        # plot3d(X, T, etaExact_h, "etaExact_h", cmap="coolwarm")
+        plt.close()
+
+    plot3d(X, T, EH_pred, "EH_pred", cmap="Spectral")
+    plot3d(X, T, pH_pred, "pH_pred", cmap="Spectral")
+    plot3d(X, T, etaH_pred, "etaH_pred", cmap="Spectral")
+    plot3d(X, T, EExact_h, "EExact_h", cmap="coolwarm")
+    plot3d(X, T, pExact_h, "pExact_h", cmap="coolwarm")
+    plot3d(X, T, etaExact_h, "etaExact_h", cmap="coolwarm")
 
     def plot2d(E, p, eta, name, cmap):
         norm = matplotlib.colors.Normalize(
@@ -382,6 +385,7 @@ def main(cfg: DictConfig):
         )
         fig15.colorbar(h, ax=ax)
         plt.savefig(folder_name + f"/3维图{name}.png", dpi="figure")
+        plt.close()
 
     plot2d(EH_pred, pH_pred, etaH_pred, "Prediction", cmap="viridis")
     plot2d(EExact_h, pExact_h, etaExact_h, "Exact", cmap="viridis")
@@ -392,7 +396,7 @@ def main(cfg: DictConfig):
         "Absolute error",
         cmap="viridis",
     )
-    io.savemat(
+    sio.savemat(
         folder_name + f"/预测结果_{os.path.basename(os.getcwd())}.mat",
         {
             "x": x,
@@ -410,16 +414,6 @@ def main(cfg: DictConfig):
             "etaExact_h": etaExact_h,
         },
     )
-
-
-# @hydra.main(version_base=None, config_path="./conf", config_name="亮MW.yaml")
-# def main(cfg: DictConfig):
-#     if cfg.mode == "train":
-#         train(cfg)
-#     elif cfg.mode == "eval":
-#         evaluate(cfg)
-#     else:
-#         raise ValueError(f"cfg.mode should in ['train', 'eval'], but got '{cfg.mode}'")
 
 
 if __name__ == "__main__":
