@@ -197,16 +197,7 @@ def main(cfg: DictConfig):
     PFNN = cfg.PFNN
     net = (
         dde.nn.PFNN(
-            [
-                2,
-                [16] * 5,
-                [16] * 5,
-                [16] * 5,
-                [16] * 5,
-                [16] * 5,
-                [16] * 5,
-                5,
-            ],
+            [2] + [[16] * 5] * 6 + [5],
             cfg.activate,
             "Glorot normal",
         )

@@ -220,16 +220,7 @@ observe_y4 = dde.icbc.PointSetBC(X_u_train, eta_train, component=4)
 PFNN = True
 net = (
     dde.nn.PFNN(
-        [
-            2,
-            [16] * 5,
-            [16] * 5,
-            [16] * 5,
-            [16] * 5,
-            [16] * 5,
-            [16] * 5,
-            5,
-        ],
+        [2] + [[16] * 5] * 6 + [5],
         "tanh",
         "Glorot normal",
     )
