@@ -1,8 +1,8 @@
-"""Backend supported: tensorflow.compat.v1, tensorflow, pytorch, paddle"""
+"""Backend supported: tensorflow.compat.v1, tensorflow, pytorch, paddle, jax"""
 
 import os
 
-os.environ["DDEBACKEND"] = "pytorch"
+os.environ["DDEBACKEND"] = "jax"
 os.makedirs("model", exist_ok=True)
 import deepxde as dde
 import matplotlib.pyplot as plt
@@ -29,6 +29,13 @@ elif dde.backend.backend_name == "pytorch":
     cos_tesnor = torch.cos
     exp_tensor = torch.exp
     concat = torch.cat
+elif dde.backend.backend_name == "jax":
+    import jax.numpy as jnp
+
+    sin_tesnor = jnp.sin
+    cos_tesnor = jnp.cos
+    exp_tensor = jnp.exp
+    # concat = jnp.cat
 else:
     from deepxde.backend import tf
 
@@ -100,22 +107,23 @@ def solution(XT):
 
 
 def pde(x, y):
+    pu_t = dde.grad.jacobian(y, x, i=2, j=1)[0]
+    pv_t = dde.grad.jacobian(y, x, i=3, j=1)[0]
+    eta_t = dde.grad.jacobian(y, x, i=4, j=1)[0]
+
+    Eu_z = dde.grad.jacobian(y, x, i=0, j=0)[0]
+    Ev_z = dde.grad.jacobian(y, x, i=1, j=0)[0]
+
+    Eu_tt = dde.grad.hessian(y, x, component=0, i=1, j=1)[0]
+    Ev_tt = dde.grad.hessian(y, x, component=1, i=1, j=1)[0]
+
+    if dde.backend.backend_name == "jax":
+        y = y[0]  # f[1] is the function used by jax to compute the gradients
     Eu = y[:, 0:1]
     Ev = y[:, 1:2]
     pu = y[:, 2:3]
     pv = y[:, 3:4]
     eta = y[:, 4:5]
-
-    pu_t = dde.grad.jacobian(y, x, i=2, j=1)
-    pv_t = dde.grad.jacobian(y, x, i=3, j=1)
-    eta_t = dde.grad.jacobian(y, x, i=4, j=1)
-
-    Eu_z = dde.grad.jacobian(y, x, i=0, j=0)
-    Ev_z = dde.grad.jacobian(y, x, i=1, j=0)
-
-    Eu_tt = dde.grad.hessian(y, x, component=0, i=1, j=1)
-    Ev_tt = dde.grad.hessian(y, x, component=1, i=1, j=1)
-
     f1_u = alpha_1 * Eu_tt - alpha_2 * Eu * (Eu**2 + Ev**2) + 2 * pv - Ev_z
     f1_v = alpha_1 * Ev_tt - alpha_2 * Ev * (Eu**2 + Ev**2) - 2 * pu + Eu_z
     f2_u = 2 * Ev * eta - pv_t + 2 * pu * omega_0
@@ -127,11 +135,9 @@ def pde(x, y):
 
 EExact_u, EExact_v, pExact_u, pExact_v, etaExact_u = solution(X_star)
 
-space_domain = dde.geometry.Interval(z_lower, z_upper)  # 先定义空间
-time_domain = dde.geometry.TimeDomain(t_lower, t_upper)  # 再定义时间
-geomtime = dde.geometry.GeometryXTime(
-    space_domain, time_domain
-)  # 结合一下，变成时空区域
+space_domain = dde.geometry.Interval(z_lower, z_upper)
+time_domain = dde.geometry.TimeDomain(t_lower, t_upper)
+geomtime = dde.geometry.GeometryXTime(space_domain, time_domain)
 
 """inverse"""
 idx = np.random.choice(X_star.shape[0], 5000, replace=False)
@@ -170,7 +176,7 @@ def feature_transform(XT):
     )
 
 
-net.apply_feature_transform(feature_transform)
+# net.apply_feature_transform(feature_transform)
 
 
 def output_transform(XT, y):
@@ -233,12 +239,12 @@ def output_transform(XT, y):
 
 model = dde.Model(data, net)
 
-iterations = 1000
-loss_weights = [1, 1, 1, 1, 1, 100, 100, 100, 100, 100]
+iterations = 10
+# loss_weights = [1, 1, 1, 1, 1, 100, 100, 100, 100, 100]
 model.compile(
     "adam",
     lr=0.001,
-    loss_weights=loss_weights,
+    # loss_weights=loss_weights,
     metrics=["l2 relative error"],
     decay=("inverse time", iterations // 5, 0.5),
     external_trainable_variables=var_list,
@@ -257,7 +263,7 @@ resampler = dde.callbacks.PDEPointResampler(
 losshistory, train_state = model.train(
     iterations=iterations,
     display_every=100,
-    model_save_path="model/",
+    # model_save_path="model/",
     callbacks=[resampler, variable],
 )
 if 0:
@@ -286,9 +292,7 @@ Eh_true = np.sqrt(EExact_u**2 + EExact_v**2).flatten()
 ph_true = np.sqrt(pExact_u**2 + pExact_v**2).flatten()
 etah_true = np.abs(etaExact_u).flatten()
 
-prediction = model.predict(
-    X_star, operator=None
-)  # 如果 `operator` 为 `None`，则返回网络输出，否则返回 `operator` 的输出
+prediction = model.predict(X_star, operator=None)
 Eu_pred = prediction[:, 0]  # (51456,)
 Ev_pred = prediction[:, 1]
 Eh_pred = np.sqrt(Eu_pred**2 + Ev_pred**2)
@@ -314,36 +318,36 @@ pH_pred = ph_pred.reshape(nt, nx)
 etaH_pred = etah_pred.reshape(nt, nx)
 pred_var_list = variable.get_value()
 
-# reopen saved data using callbacks in fnamevar
-lines = open(filenamevar, "r").readlines()
-# read output data in fnamevar (this line is a long story...)
-Chat = np.array(
-    [
-        np.fromstring(
-            min(re.findall(re.escape("[") + "(.*?)" + re.escape("]"), line)),
-            sep=",",
-        )
-        for line in lines
-    ]
-)
+# # reopen saved data using callbacks in fnamevar
+# lines = open(filenamevar, "r").readlines()
+# # read output data in fnamevar (this line is a long story...)
+# Chat = np.array(
+#     [
+#         np.fromstring(
+#             min(re.findall(re.escape("[") + "(.*?)" + re.escape("]"), line)),
+#             sep=",",
+#         )
+#         for line in lines
+#     ]
+# )
 
-l, c = Chat.shape
-i = 0
-plt.figure("反问题系数", dpi=dpi, facecolor=None, edgecolor=None)
-for key, value in true_var_dict.items():
-    relative_error = dde.metrics._absolute_percentage_error(value, Chat[-1, i])
-    print("relative_error_{}: {}".format(key, relative_error))
-    plt.plot(
-        range(0, period * l, period),
-        np.ones(Chat[:, 0].shape) * value,
-        "--",
-        label="true $\\" + key + "$",
-    )
-    plt.plot(range(0, period * l, period), Chat[:, i], label="$\\" + key + "$")
-    i += 1
-plt.legend()
-plt.xlabel("iterations")
-plt.savefig("反问题系数.png")
+# l, c = Chat.shape
+# i = 0
+# plt.figure("反问题系数", dpi=dpi, facecolor=None, edgecolor=None)
+# for key, value in true_var_dict.items():
+#     relative_error = dde.metrics._absolute_percentage_error(value, Chat[-1, i])
+#     print("relative_error_{}: {}".format(key, relative_error))
+#     plt.plot(
+#         range(0, period * l, period),
+#         np.ones(Chat[:, 0].shape) * value,
+#         "--",
+#         label="true $\\" + key + "$",
+#     )
+#     plt.plot(range(0, period * l, period), Chat[:, i], label="$\\" + key + "$")
+#     i += 1
+# plt.legend()
+# plt.xlabel("iterations")
+# plt.savefig("反问题系数.png")
 
 fig5 = plt.figure("3d预测演化图E", dpi=dpi)
 ax = fig5.add_subplot(projection="3d")
@@ -566,7 +570,7 @@ ax2.legend(
     frameon=False,
 )  # bbox_to_anchor的坐标决定loc那个点的位置
 # plt.subplots_adjust(left=0.15, right=1-0.01,bottom=0.08, top=1-0.08,wspace=None, hspace=0.25)
-# plt.tight_layout()#自动调整大小和间距，使各个子图标签不重叠
+# plt.tight_layout()
 
 fig17 = plt.figure("平面绝对误差演化图", dpi=dpi, constrained_layout=True)
 norm1 = matplotlib.colors.Normalize(
@@ -629,23 +633,23 @@ fig17.colorbar(h0, ax=[ax0, ax1, ax2], location="right")
 
 
 dde.saveplot(losshistory, train_state, issave=True, isplot=False, output_dir="model/")
-io.savemat(
-    "反问题怪波0的噪声0.5,-1,0.5.mat",
-    {
-        "x": x,
-        "t": t,
-        "elapsed": elapsed,
-        "X_u_train": X_u_train,
-        "E_L2_relative_error": E_L2_relative_error,
-        "p_L2_relative_error": p_L2_relative_error,
-        "eta_L2_relative_error": eta_L2_relative_error,
-        "EH_pred": EH_pred,
-        "pH_pred": pH_pred,
-        "etaH_pred": etaH_pred,
-        "EExact_h": EExact_h,
-        "pExact_h": pExact_h,
-        "etaExact_h": etaExact_h,
-        "pred_var_list": pred_var_list,
-    },
-)
+# io.savemat(
+#     "反问题怪波0的噪声0.5,-1,0.5.mat",
+#     {
+#         "x": x,
+#         "t": t,
+#         "elapsed": elapsed,
+#         "X_u_train": X_u_train,
+#         "E_L2_relative_error": E_L2_relative_error,
+#         "p_L2_relative_error": p_L2_relative_error,
+#         "eta_L2_relative_error": eta_L2_relative_error,
+#         "EH_pred": EH_pred,
+#         "pH_pred": pH_pred,
+#         "etaH_pred": etaH_pred,
+#         "EExact_h": EExact_h,
+#         "pExact_h": pExact_h,
+#         "etaExact_h": etaExact_h,
+#         "pred_var_list": pred_var_list,
+#     },
+# )
 # plt.show()
