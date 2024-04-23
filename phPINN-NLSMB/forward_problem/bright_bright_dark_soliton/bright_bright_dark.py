@@ -20,24 +20,24 @@ from omegaconf import DictConfig
 if dde.backend.backend_name == "paddle":
     import paddle
 
-    sin_tesnor = paddle.sin
+    sin_tensor = paddle.sin
     exp_tensor = paddle.exp
-    cos_tesnor = paddle.cos
+    cos_tensor = paddle.cos
     cosh_tensor = paddle.cosh
     concat = paddle.concat
 elif dde.backend.backend_name == "pytorch":
     import torch
 
-    sin_tesnor = torch.sin
-    cos_tesnor = torch.cos
+    sin_tensor = torch.sin
+    cos_tensor = torch.cos
     exp_tensor = torch.exp
     cosh_tensor = torch.cosh
     concat = torch.cat
 else:
     from deepxde.backend import tf
 
-    sin_tesnor = tf.math.sin
-    cos_tesnor = tf.math.cos
+    sin_tensor = tf.math.sin
+    cos_tensor = tf.math.cos
     exp_tensor = tf.math.exp
     cosh_tensor = tf.math.cosh
     concat = tf.concat
@@ -130,8 +130,8 @@ def main(cfg: DictConfig):
         X = XT[:, 0:1]
         T = XT[:, 1:2]
         I = 1j
-        cos = cos_tesnor
-        sin = sin_tesnor
+        cos = cos_tensor
+        sin = sin_tensor
         cosh = cosh_tensor
         exp = exp_tensor
         EExact = 2 * exp(-2 * I / 5 * (5 * T - 2 * X)) / cosh(2 * T + (22 * X) / 5)

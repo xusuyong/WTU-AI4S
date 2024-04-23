@@ -18,24 +18,24 @@ start_time = time.time()
 if dde.backend.backend_name == "paddle":
     import paddle
 
-    sin_tesnor = paddle.sin
+    sin_tensor = paddle.sin
     exp_tensor = paddle.exp
-    cos_tesnor = paddle.cos
+    cos_tensor = paddle.cos
     cosh_tensor = paddle.cosh
     concat = paddle.concat
 elif dde.backend.backend_name == "pytorch":
     import torch
 
-    sin_tesnor = torch.sin
-    cos_tesnor = torch.cos
+    sin_tensor = torch.sin
+    cos_tensor = torch.cos
     exp_tensor = torch.exp
     cosh_tensor = torch.cosh
     concat = torch.cat
 else:
     from deepxde.backend import tf
 
-    sin_tesnor = tf.sin
-    cos_tesnor = tf.cos
+    sin_tensor = tf.sin
+    cos_tensor = tf.cos
     exp_tensor = tf.exp
     cosh_tensor = tf.math.cosh
     concat = tf.concat
@@ -170,8 +170,8 @@ def output_transform(XT, y):
     eta = y[:, 4:5]
     X = XT[:, 0:1]
     T = XT[:, 1:2]
-    cos = cos_tesnor
-    sin = sin_tesnor
+    cos = cos_tensor
+    sin = sin_tensor
     cosh = cosh_tensor
     exp = exp_tensor
 

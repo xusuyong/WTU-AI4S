@@ -18,29 +18,29 @@ start_time = time.time()
 if dde.backend.backend_name == "paddle":
     import paddle
 
-    sin_tesnor = paddle.sin
+    sin_tensor = paddle.sin
     exp_tensor = paddle.exp
-    cos_tesnor = paddle.cos
+    cos_tensor = paddle.cos
     concat = paddle.concat
 elif dde.backend.backend_name == "pytorch":
     import torch
 
-    sin_tesnor = torch.sin
-    cos_tesnor = torch.cos
+    sin_tensor = torch.sin
+    cos_tensor = torch.cos
     exp_tensor = torch.exp
     concat = torch.cat
 elif dde.backend.backend_name == "jax":
     import jax.numpy as jnp
 
-    sin_tesnor = jnp.sin
-    cos_tesnor = jnp.cos
+    sin_tensor = jnp.sin
+    cos_tensor = jnp.cos
     exp_tensor = jnp.exp
     # concat = jnp.cat
 else:
     from deepxde.backend import tf
 
-    sin_tesnor = tf.sin
-    cos_tesnor = tf.cos
+    sin_tensor = tf.sin
+    cos_tensor = tf.cos
     exp_tensor = tf.exp
     concat = tf.concat
 z_lower = -0.5
