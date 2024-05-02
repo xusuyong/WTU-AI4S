@@ -392,17 +392,15 @@ surf = ax.plot_surface(
     X,
     T,
     etaH_pred,
-    rstride=stride,  # 指定行的跨度
-    cstride=stride,  # 指定列的跨度
-    cmap="Spectral",  # 设置颜色映射
+    rstride=stride, 
+    cstride=stride,
+    cmap="Spectral",
     linewidth=0,
     antialiased=False,
-)  # 抗锯齿
-# ax.grid(False)#关闭背景的网格线
+)
 ax.set(xlabel="$z$", ylabel="$t$", zlabel="$|\eta(t,z)|$")
-# fig7.colorbar(surf, shrink=0.5, aspect=5)
 ax.view_init(elevation, azimuth)
-plt.tight_layout()  # 自动调整大小和间距，使各个子图标签不重叠
+plt.tight_layout()
 
 tt0 = 0.1
 tt1 = 0.4
