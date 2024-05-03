@@ -163,6 +163,7 @@ cython_debug/
 *.dat
 *.mat
 *.png
+*.gif
 *.pdf
 *.eps
 *.pt
