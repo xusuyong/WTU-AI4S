@@ -139,7 +139,7 @@ print("Mean residual:", np.mean(np.absolute(f)))
 
 
 def gen_testdata():
-    data = np.load(r"..\..\..\..\PycharmProjects\deepxde\examples\dataset\Burgers.npz")
+    data = np.load(r"Burgers.npz")
     t, x, exact = data["t"], data["x"], data["usol"].T
     xx, tt = np.meshgrid(x, t)
     X = np.vstack((np.ravel(xx), np.ravel(tt))).T
@@ -162,14 +162,15 @@ f = (
 print("Mean residual:", np.mean(np.absolute(f)))
 print("L2 relative error:", l2_relative_error(y_true, y_pred))
 # np.savetxt("test.dat", np.hstack((X, y_true, y_pred)))
-plt.figure(dpi=300)
+plt.figure()
 plt.title("true")
 plt.tricontourf(X[:, 0], X[:, 1], y_true[:, 0], levels=256, cmap="jet")
 plt.colorbar()
+plt.savefig("真解.png")
 
-
-plt.figure(dpi=300)
+plt.figure()
 plt.title("pred")
 plt.tricontourf(X[:, 0], X[:, 1], y_pred[:, 0], levels=256, cmap="jet")
 plt.colorbar()
+plt.savefig("预测解.png")
 plt.show()

@@ -2,7 +2,7 @@
 
 import os
 
-os.environ["DDEBACKEND"] = "paddle"
+os.environ["DDEBACKEND"] = "tensorflow"
 os.makedirs("model", exist_ok=True)
 import deepxde as dde
 import matplotlib.pyplot as plt
@@ -43,6 +43,13 @@ else:
     cos_tensor = tf.cos
     exp_tensor = tf.exp
     concat = tf.concat
+
+# paddle.device.set_device("cpu") # cpu gpu
+# torch.set_default_device("cpu") # cpu cuda
+# torch.set_default_tensor_type(torch.cuda.FloatTensor) # pytorch小于2.1版本
+tf.config.set_visible_devices([], 'GPU') # 只适用于tfv2
+
+
 z_lower = -0.5
 z_upper = 0.5
 t_lower = -2.5
@@ -238,14 +245,14 @@ def output_transform(XT, y):
 
 model = dde.Model(data, net)
 
-iterations = 1000
+iterations = 1
 loss_weights = [1, 1, 1, 1, 1, 100, 100, 100, 100, 100]
 model.compile(
     "adam",
     lr=0.001,
     loss_weights=loss_weights,
     metrics=["l2 relative error"],
-    decay=("inverse time", iterations // 5, 0.5),
+    decay=("inverse time", iterations // 1, 0.5),
     external_trainable_variables=var_list,
 )
 filenamevar = "variables1.dat"
