@@ -25,7 +25,9 @@ layer_sizes = [1] + [128] * 4 + [1]
 lr = 0.001
 nsteps = 10000
 nn = FNN(layer_sizes)
-optimizer = paddle.optimizer.Adam(nn.parameters(), lr, weight_decay=0.0)
+optimizer = paddle.optimizer.Adam(
+    parameters=nn.parameters(), learning_rate=lr, weight_decay=0.0
+)
 for i in range(nsteps):
     y = nn(paddle.to_tensor(train_x))
     loss_fn = paddle.nn.MSELoss()
