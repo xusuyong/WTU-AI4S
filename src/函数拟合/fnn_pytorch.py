@@ -40,12 +40,12 @@ for i in range(nsteps):
     # Loss
     loss_fn = torch.nn.MSELoss()
     loss = loss_fn(y, torch.from_numpy(train_y))  # 预测值和真值
-    optimizer.zero_grad()  # 将梯度清零
-    loss.backward()  # 反向传播
-    optimizer.step()  # 优化一步
+    optimizer.zero_grad()  # 清零所有参数的梯度，以便进行下一轮反向传播之前不累积梯度。
+    loss.backward()  # 反向传播，计算损失函数关于各个参数的梯度。
+    optimizer.step()  # 根据参数的梯度更新参数值，使损失函数尽可能减小。
 
     if i % 1000 == 0 or i == nsteps - 1:
-        with torch.no_grad():  # 预测时不要求梯度
+        with torch.no_grad():  # 进入一个上下文管理器，表示在该代码块中不需要计算梯度。
             pred_y = nn(torch.from_numpy(test_x)).detach().cpu().numpy()
         err_test = np.mean((pred_y - test_y) ** 2)
         print(i, loss.item(), err_test)
