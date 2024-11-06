@@ -92,9 +92,7 @@ def model(X_train, Y_train, learning_rate, num_iterations, print_cost=False):
     return d
 
 
-d = model(
-    train_set_x, train_set_y, learning_rate=0.005, num_iterations=2001, print_cost=True
-)
+d = model(train_set_x, train_set_y, learning_rate=0.005, num_iterations=2001, print_cost=True)
 
 
 def predict(parameters, X):
@@ -126,7 +124,7 @@ plt.xlabel("iterations (per hundreds)")
 plt.title("Learning rate =" + str(d["learning_rate"]))
 plt.show()
 
-
+exit()
 print("\n" + "-------------------------------------------------------" + "\n")
 learning_rates = [0.01, 0.001, 0.005, 0.0001]
 models = {}

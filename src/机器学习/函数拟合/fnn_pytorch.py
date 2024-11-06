@@ -51,6 +51,8 @@ for i in range(nsteps):
         print(i, loss.item(), err_test)
 
 # Plot
-plt.plot(test_x, test_y, "o")
-plt.plot(test_x, pred_y, "v")
+plt.plot(test_x, test_y, "o", label="true")
+plt.plot(test_x, pred_y, "v", label="predicted")
+plt.legend()
+plt.savefig("tu.png",dpi=400)
 plt.show()
